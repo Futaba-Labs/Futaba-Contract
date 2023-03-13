@@ -2,12 +2,12 @@ import { ethers } from "hardhat";
 
 
 async function main() {
-  const Gateway = await ethers.getContractFactory("Gateway");
-  const gateway = await Gateway.deploy();
+  const LC = await ethers.getContractFactory("LightClientMock");
+  const lc = await LC.deploy();
 
-  await gateway.deployed();
+  await lc.deployed();
 
-  console.log(`Gateway deployed to ${gateway.address}`);
+  console.log(`LightClientMock deployed to ${lc.address}`);
 }
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.

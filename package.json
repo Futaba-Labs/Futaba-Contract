@@ -8,7 +8,10 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
-    "deploy-goerli": "hardhat run --network goerli scripts/deploy.ts"
+    "deploy-mumbai": "hardhat run --network mumbai scripts/deploy.ts",
+    "deploy-lc-mock-mumbai": "hardhat run --network mumbai scripts/deployLCMock.ts",
+    "deploy-receiver-mock-mumbai": "hardhat run --network mumbai scripts/deployReceiverMock.ts",
+    "query-mumbai": "hardhat run --network mumbai scripts/requestQuery.ts"
   },
   "devDependencies": {
     "@ethersproject/abi": "^5.4.7",

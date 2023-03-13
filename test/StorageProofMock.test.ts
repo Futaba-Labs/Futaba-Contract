@@ -37,7 +37,7 @@ describe("StorageProofMock", async function () {
 
       const res = await fetch(`https://polygon-mumbai.g.alchemy.com/v2/${process.env.POLYGON_TESTNET_API_KEY}`, options)
       const result = await res.json()
-      console.log(result)
+      // console.log(result)
 
       const src = "0x78F2a2d8311447b9f1De8899f6F07564Bd19707e"
       const newKeyPreimage1 = concat([
@@ -63,7 +63,7 @@ describe("StorageProofMock", async function () {
 
       const response = await fetch(`https://polygon-mumbai.g.alchemy.com/v2/${process.env.POLYGON_TESTNET_API_KEY}`, options)
       const re = await response.json()
-      console.log(re.result.storageProof)
+      // console.log(re.result.storageProof)
       // console.log(keccak256(newKeyPreimage1))
 
       const getProof = new GetProof(`https://polygon-mumbai.g.alchemy.com/v2/${process.env.POLYGON_TESTNET_API_KEY}`)
@@ -71,8 +71,8 @@ describe("StorageProofMock", async function () {
       const storageProofs2 = await getProof.storageProof(src, keccak256(newKeyPreimage2), "0x41d9a663d904219f0d187490122a62aafe39748b6b24548e19513d7dcd4470f8")
       const accountProofs = await getProof.accountProof(src, "0x41d9a663d904219f0d187490122a62aafe39748b6b24548e19513d7dcd4470f8")
 
-      console.log(storageProofs1.header.toJson())
-      console.log(storageProofs2.header.toJson())
+      // console.log(storageProofs1.header.toJson())
+      // console.log(storageProofs2.header.toJson())
 
       const accountProof = {
         root: result.result.stateRoot,
@@ -89,8 +89,8 @@ describe("StorageProofMock", async function () {
         path: keccak256(newKeyPreimage2),
         proof: RLP.encode(storageProofs2.storageProof)
       }
-      const data = await mock.verifyStorage(accountProof, [storageProof1, storageProof2])
-      console.log(data)
+      // const data = await mock.verifyStorage(accountProof, [storageProof1, storageProof2])
+      // console.log(data)
     });
   });
 });

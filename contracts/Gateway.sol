@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "./interfaces/IGateway.sol";
 import "./interfaces/ILightClient.sol";
 import "./interfaces/IReceiver.sol";
+import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Gateway is IGateway, Ownable {
@@ -11,20 +12,20 @@ contract Gateway is IGateway, Ownable {
 
     mapping(bytes32 => bytes) public resultStore;
 
-    mapping(bytes32 => QueryRequest[]) public queryStore;
+    mapping(bytes32 => QueryType.QueryRequest[]) public queryStore;
 
     constructor() {
         nonce = 1;
     }
 
     function query(
-        QueryRequest[] memory queries,
+        QueryType.QueryRequest[] memory queries,
         address ligthClient,
         address callBack,
         bytes calldata message
     ) external payable {
         for (uint i = 0; i < queries.length; i++) {
-            QueryRequest memory q = queries[i];
+            QueryType.QueryRequest memory q = queries[i];
             require(
                 q.to != address(0x0),
                 "Futaba: Invalid target contract zero address"
@@ -50,33 +51,35 @@ contract Gateway is IGateway, Ownable {
             queryId,
             encodedPayload,
             message,
-            ligthClient
+            ligthClient,
+            callBack
         );
-        queryStore[queryId] = queries;
+        QueryType.QueryRequest[] storage requests = queryStore[queryId];
+        for (uint i = 0; i < queries.length; i++) {
+            requests.push(queries[i]);
+        }
         nonce++;
     }
 
-    function receiveQuery(QueryResponse memory response) external payable {
+    function receiveQuery(
+        QueryType.QueryResponse memory response
+    ) external payable {
         require(
             response.lightClient != address(0x0),
             "Futaba: Invalid light client contract"
         );
 
         bytes32 queryId = response.queryId;
-        QueryRequest[] memory queries = queryStore[queryId];
+        QueryType.QueryRequest[] memory queries = queryStore[queryId];
         require(queries.length > 0, "Futaba: Invalid query id");
 
         ILightClient lightClient = ILightClient(response.lightClient);
-        (success, results) = lightClient.verify(response.proof);
+        (bool success, bytes[] memory results) = lightClient.verify(
+            response.proof
+        );
         require(success, "Futaba: Invalid proof");
 
-        bytes[] memory results = new bytes[](queries.length);
-        for (uint i = 0; i < queries.length; i++) {
-            QueryRequest memory q = queries[i];
-            results[i] = abi.decode(response.packet, (bytes));
-        }
-
         IReceiver callBack = IReceiver(response.callBack);
-        callBack.receiveQuery(results, queries, response.message);
+        callBack.receiveQuery(results, queries, response.packet);
     }
 }
