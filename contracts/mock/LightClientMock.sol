@@ -2,15 +2,24 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/ILightClient.sol";
+import "../interfaces/ILightClientMock.sol";
+import "../interfaces/IOracle.sol";
 import "../lib/TrieProofs.sol";
 import "../lib/EthereumDecoder.sol";
+
+import "../QueryType.sol";
+
 import "hardhat/console.sol";
 
-contract LightClientMock is ILightClient {
+contract LightClientMock is ILightClient, ILightClientMock {
     using TrieProofs for bytes;
 
     mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
+
+    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
+
+    address public oracle;
 
     struct Proof {
         uint32 dstChainId;
@@ -28,10 +37,21 @@ contract LightClientMock is ILightClient {
         bytes proof;
     }
 
+    function requestQuery(QueryType.QueryRequest[] memory queries) external {
+        QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
+            queries.length
+        );
+        for (uint i = 0; i < queries.length; i++) {
+            QueryType.QueryRequest memory q = queries[i];
+            requests[i] = QueryType.OracleQuery(q.dstChainId, q.height);
+        }
+
+        IOracle(oracle).notifyOracle(requests);
+    }
+
     function verify(
         bytes memory message
     ) public returns (bool, bytes[] memory) {
-        console.log("verify - message");
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         bytes[] memory results = new bytes[](proofs.length);
         for (uint i = 0; i < proofs.length; i++) {
@@ -52,7 +72,7 @@ contract LightClientMock is ILightClient {
                         approvedStorageRoots[proof.dstChainId][proof.height][
                             accountProof.account
                         ] == storageProof.root,
-                        "verify - different trie roots"
+                        "Futaba: verify - different trie roots"
                     );
                     bytes32 path = keccak256(
                         abi.encodePacked(storageProof.path)
@@ -66,7 +86,7 @@ contract LightClientMock is ILightClient {
                 EthereumDecoder.Account memory account = EthereumDecoder
                     .toAccount(
                         accountProof.proof.verify(
-                            accountProof.root,
+                            approvedStateRoots[proof.dstChainId][proof.height],
                             keccak256(abi.encodePacked(accountProof.account))
                         )
                     );
@@ -86,5 +106,39 @@ contract LightClientMock is ILightClient {
             }
         }
         return (true, results);
+    }
+
+    function updateHeader(
+        QueryType.OracleResponse[] memory responses
+    ) external override onlyOracle {
+        for (uint i = 0; i < responses.length; i++) {
+            QueryType.OracleResponse memory response = responses[i];
+            bytes32 root = approvedStateRoots[response.dstChainId][
+                response.height
+            ];
+            if (root != bytes32("")) {
+                require(
+                    root == response.root,
+                    "Futaba: updateHeader - different trie roots"
+                );
+            } else {
+                approvedStateRoots[response.dstChainId][
+                    response.height
+                ] = response.root;
+            }
+        }
+    }
+
+    function setOracle(address _oracle) public {
+        oracle = _oracle;
+    }
+
+    function getOracle() public view returns (address) {
+        return oracle;
+    }
+
+    modifier onlyOracle() {
+        require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
+        _;
     }
 }

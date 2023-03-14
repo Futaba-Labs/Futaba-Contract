@@ -1,0 +1,2 @@
+import "./deployLightClient"
+import "./setOracle"

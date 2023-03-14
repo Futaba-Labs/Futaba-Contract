@@ -11,9 +11,11 @@
     "deploy-mumbai": "hardhat run --network mumbai scripts/deploy.ts",
     "deploy-lc-mock-mumbai": "hardhat run --network mumbai scripts/deployLCMock.ts",
     "deploy-receiver-mock-mumbai": "hardhat run --network mumbai scripts/deployReceiverMock.ts",
-    "query-mumbai": "hardhat run --network mumbai scripts/requestQuery.ts"
+    "query-mumbai": "hardhat run --network mumbai scripts/requestQuery.ts",
+    "setup": "hardhat TASK_SETUP --network mumbai"
   },
   "devDependencies": {
+    "@chainlink/contracts": "^0.6.1",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",

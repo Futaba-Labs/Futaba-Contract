@@ -28,18 +28,43 @@ describe("Gateway", async function () {
     return { gateway, owner, otherAccount }
   }
 
+  async function deployLightClientMockFixture() {
+    // Contracts are deployed using the first signer/account by default
+    const [owner, otherAccount] = await ethers.getSigners()
+
+    const LightClientMock = await ethers.getContractFactory("LightClientMock")
+    const lcMock = await LightClientMock.deploy()
+
+    return { lcMock, owner, otherAccount }
+  }
+
+  async function deployOracleMockFixture() {
+    // Contracts are deployed using the first signer/account by default
+    const [owner, otherAccount] = await ethers.getSigners()
+
+    const OracleMock = await ethers.getContractFactory("OracleMock")
+    const oracleMock = await OracleMock.deploy(SRC)
+
+    return { oracleMock, owner, otherAccount }
+  }
+
   it("query()", async function () {
     const { gateway } = await loadFixture(deployGatewayFixture)
+    const { lcMock } = await loadFixture(deployLightClientMockFixture)
+    const { oracleMock } = await loadFixture(deployOracleMockFixture)
+    let tx = await lcMock.setOracle(oracleMock.address)
+    await tx.wait()
+    tx = await oracleMock.setClient(lcMock.address)
     const slots = getSlots()
     const src = SRC
     const callBack = TEST_CALLBACK_ADDRESS
-    const lightClient = TEST_LIGHT_CLIENT_ADDRESS
+    const lightClient = lcMock.address
     const message = MESSAGE
     const QueryRequests: QueryType.QueryRequestStruct[] = [
       { dstChainId: 5, to: src, height: 32130734, slot: slots[0] },
       { dstChainId: 80001, to: src, height: 32130734, slot: slots[1] },
     ]
-    let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+    tx = await gateway.query(QueryRequests, lightClient, callBack, message)
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
 
@@ -66,21 +91,11 @@ describe("Gateway", async function () {
     }
   })
 
-  async function deployLightClientMockFixture() {
-    // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners()
-
-    const LightClientMock = await ethers.getContractFactory("LightClientMock")
-    const mock = await LightClientMock.deploy()
-
-    return { mock, owner, otherAccount }
-  }
-
   async function requestQuery(gateway: Gateway, slots: string[]) {
-    const { mock } = await loadFixture(deployLightClientMockFixture)
+    const { lcMock } = await loadFixture(deployLightClientMockFixture)
     const src = SRC
     const callBack = TEST_CALLBACK_ADDRESS
-    const lightClient = mock.address
+    const lightClient = lcMock.address
     const message = MESSAGE
     const QueryRequests: QueryType.QueryRequestStruct[] = [
       { dstChainId: 5, to: src, height: 8629032, slot: slots[0] }

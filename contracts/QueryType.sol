@@ -9,6 +9,17 @@ contract QueryType {
         bytes32 slot;
     }
 
+    struct OracleQuery {
+        uint32 dstChainId;
+        uint256 height;
+    }
+
+    struct OracleResponse {
+        uint32 dstChainId;
+        uint256 height;
+        bytes32 root;
+    }
+
     struct QueryResponse {
         bytes32 queryId;
         address lightClient;

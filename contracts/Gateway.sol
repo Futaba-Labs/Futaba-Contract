@@ -20,7 +20,7 @@ contract Gateway is IGateway, Ownable {
 
     function query(
         QueryType.QueryRequest[] memory queries,
-        address ligthClient,
+        address lightClient,
         address callBack,
         bytes calldata message
     ) external payable {
@@ -33,7 +33,7 @@ contract Gateway is IGateway, Ownable {
         }
 
         require(
-            ligthClient != address(0x0),
+            lightClient != address(0x0),
             "Futaba: Invalid light client contract"
         );
 
@@ -43,7 +43,7 @@ contract Gateway is IGateway, Ownable {
             callBack,
             queries,
             message,
-            ligthClient
+            lightClient
         );
         bytes32 queryId = keccak256(abi.encode(encodedPayload, nonce));
         emit Packet(
@@ -51,7 +51,7 @@ contract Gateway is IGateway, Ownable {
             queryId,
             encodedPayload,
             message,
-            ligthClient,
+            lightClient,
             callBack
         );
         QueryType.QueryRequest[] storage requests = queryStore[queryId];
@@ -59,6 +59,9 @@ contract Gateway is IGateway, Ownable {
             requests.push(queries[i]);
         }
         nonce++;
+
+        ILightClient lc = ILightClient(lightClient);
+        lc.requestQuery(queries);
     }
 
     function receiveQuery(
