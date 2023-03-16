@@ -10,9 +10,9 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
 
       await new Promise(f => setTimeout(f, 10000))
 
-      await hre.run("TASK_VERIFY", {
-        address: client.address
-      });
+      // await hre.run("TASK_VERIFY", {
+      //   address: client.address
+      // });
 
       return client.address;
     }

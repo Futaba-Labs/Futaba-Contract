@@ -6,7 +6,7 @@ import { BigNumber } from "ethers";
 import { concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 
 async function main() {
-  const gateway = await ethers.getContractAt("Gateway", "0xE89Ba31461cD1bC9eA74105613df8149C7C5D3ac")
+  const gateway = await ethers.getContractAt("Gateway", "0x09505D7A6c1D6f682084fD4a1B9473F0093702B9")
 
   const slot = concat([
     // Mappings' keys in Solidity must all be word-aligned (32 bytes)
@@ -18,7 +18,7 @@ async function main() {
 
   const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
   const callBack = "0x119c88D95f85c48ea6799321F1E64eEBc81A99F8"
-  const lightClient = "0x6F745129189Cf29321DfA461b1d6020fb2E88973"
+  const lightClient = "0x48bD7185A33deDA5f9644e56f0A094369B6EBe96"
   const message = MESSAGE
 
   const QueryRequests: QueryType.QueryRequestStruct[] = [

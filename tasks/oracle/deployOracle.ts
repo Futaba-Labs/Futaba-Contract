@@ -4,7 +4,7 @@ import DEPLOYMENTS from "../../constants/deployments.json"
 task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
   .setAction(
     async (taskArgs, hre): Promise<string> => {
-      const Oracle = await hre.ethers.getContractFactory("Oracle");
+      const Oracle = await hre.ethers.getContractFactory("OracleMock");
       const linkToken = DEPLOYMENTS["link_token"][hre.network.config.chainId?.toString() as keyof typeof DEPLOYMENTS["link_token"]]
 
       const oracle = await Oracle.deploy(linkToken);
@@ -13,10 +13,10 @@ task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
 
       await new Promise(f => setTimeout(f, 10000))
 
-      await hre.run("TASK_VERIFY", {
-        address: oracle.address,
-        arguments: [linkToken]
-      });
+      // await hre.run("TASK_VERIFY", {
+      //   address: oracle.address,
+      //   arguments: [linkToken]
+      // });
 
       return oracle.address;
     }

@@ -8,6 +8,15 @@ const accounts =
   process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [];
 const config: HardhatUserConfig = {
   solidity: "0.8.17",
+  etherscan: {
+    apiKey: {
+      goerli: process.env.ETHEREUM_SCAN_KEY || "",
+      polygonMumbai: process.env.POLYGON_SCAN_KEY || "",
+      moonbaseAlpha: process.env.MOONBEAM_SCAN_KEY || "",
+      optimisticGoerli: process.env.OPTIMISM_SCAN_KEY || "",
+      arbitrumGoerli: process.env.ARBITRUM_SCAN_KEY || ""
+    }
+  },
   networks: {
     hardhat: {
     },

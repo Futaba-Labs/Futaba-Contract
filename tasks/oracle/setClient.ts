@@ -1,6 +1,6 @@
 import { task, types } from "hardhat/config";
 
-task("TASK_SET_LIGTH_CLIENT", "set oracle contract address")
+task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
   .addParam<string>("client", "the light client contract address", "", types.string)
   .addParam<string>("oracle", "the gateway contract address", "", types.string)
   .setAction(

@@ -10,9 +10,9 @@ task("TASK_DEPLOY_GATEWAY", "Deploy gateway and oracle contract").setAction(
 
     await new Promise(f => setTimeout(f, 10000))
 
-    await hre.run("TASK_VERIFY", {
-      address: gateway.address
-    });
+    // await hre.run("TASK_VERIFY", {
+    //   address: gateway.address
+    // });
 
     return gateway.address;
   }
