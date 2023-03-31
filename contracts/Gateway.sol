@@ -6,6 +6,9 @@ import "./interfaces/ILightClient.sol";
 import "./interfaces/IReceiver.sol";
 import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+import "hardhat/console.sol";
 
 contract Gateway is IGateway, Ownable {
     uint64 public nonce;
@@ -30,6 +33,7 @@ contract Gateway is IGateway, Ownable {
                 q.to != address(0x0),
                 "Futaba: Invalid target contract zero address"
             );
+            console.log("query: %s", Strings.toString(q.height));
         }
 
         require(

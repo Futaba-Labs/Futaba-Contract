@@ -6,20 +6,32 @@ import "../interfaces/ILightClientMock.sol";
 import "../interfaces/IOracle.sol";
 import "../lib/TrieProofs.sol";
 import "../lib/EthereumDecoder.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "../QueryType.sol";
 
 import "hardhat/console.sol";
 
-contract LightClientMock is ILightClient, ILightClientMock {
+contract LightClientMock is ILightClient, ILightClientMock, Ownable {
+    enum Location {
+        Inline,
+        Remote
+    }
+
     using TrieProofs for bytes;
 
     mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
 
     mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
+    mapping(uint32 => string) public providerURLs;
 
     address public oracle;
+
+    string public source;
+
+    uint64 public subscriptionId;
 
     struct Proof {
         uint32 dstChainId;
@@ -37,16 +49,48 @@ contract LightClientMock is ILightClient, ILightClientMock {
         bytes proof;
     }
 
+    event SetOracle(address oracle);
+
+    event SetSource(string source);
+
+    event SetSubscriptionId(uint64 subscriptionId);
+
+    event SetProviderURL(uint32 chainId, string url);
+
     function requestQuery(QueryType.QueryRequest[] memory queries) external {
-        QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
-            queries.length
-        );
+        string memory args = "[";
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
-            requests[i] = QueryType.OracleQuery(q.dstChainId, q.height);
+            args = string(
+                abi.encodePacked(
+                    args,
+                    '["',
+                    providerURLs[q.dstChainId],
+                    '","',
+                    Strings.toString(q.dstChainId),
+                    '","',
+                    Strings.toString(q.height),
+                    '"]'
+                )
+            );
+            if (i != queries.length - 1) {
+                args = string(abi.encodePacked(args, ","));
+            }
         }
+        args = string(abi.encodePacked(args, "]"));
+        console.log("args: %s", args);
 
-        IOracle(oracle).notifyOracle(requests);
+        string[] memory params = new string[](1);
+        params[0] = args;
+
+        IOracle(oracle).executeRequest(
+            source,
+            bytes(""),
+            IOracle.Location.Inline,
+            params,
+            subscriptionId,
+            200000
+        );
     }
 
     function verify(
@@ -131,10 +175,43 @@ contract LightClientMock is ILightClient, ILightClientMock {
 
     function setOracle(address _oracle) public {
         oracle = _oracle;
+        emit SetOracle(_oracle);
     }
 
     function getOracle() public view returns (address) {
         return oracle;
+    }
+
+    function setProviderURL(
+        uint32 chainId,
+        string memory url
+    ) public onlyOwner {
+        providerURLs[chainId] = url;
+        emit SetProviderURL(chainId, url);
+    }
+
+    function getProviderURL(
+        uint32 chainId
+    ) public view returns (string memory) {
+        return providerURLs[chainId];
+    }
+
+    function setSource(string memory _source) public onlyOwner {
+        source = _source;
+        emit SetSource(_source);
+    }
+
+    function getSource() public view returns (string memory) {
+        return source;
+    }
+
+    function setSubscriptionId(uint64 _subscriptionId) public onlyOwner {
+        subscriptionId = _subscriptionId;
+        emit SetSubscriptionId(_subscriptionId);
+    }
+
+    function getSubscriptionId() public view returns (uint64) {
+        return subscriptionId;
     }
 
     modifier onlyOracle() {

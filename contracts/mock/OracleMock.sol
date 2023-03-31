@@ -8,7 +8,7 @@ import "../interfaces/IOracle.sol";
 import "../interfaces/ILightClient.sol";
 import "../interfaces/ILightClientMock.sol";
 
-contract OracleMock is IOracle, ChainlinkClient, ConfirmedOwner {
+contract OracleMock is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
 
     bytes32 private jobId;

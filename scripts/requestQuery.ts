@@ -18,13 +18,14 @@ async function main() {
 
   const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
   const callBack = "0x119c88D95f85c48ea6799321F1E64eEBc81A99F8"
-  const lightClient = "0x48bD7185A33deDA5f9644e56f0A094369B6EBe96"
+  const lightClient = "0xCd0728e33b52A0624900e24c45b8c3B2a59B546D"
   const message = MESSAGE
 
   const QueryRequests: QueryType.QueryRequestStruct[] = [
-    { dstChainId: 5, to: src, height: 8629032, slot: keccak256(slot) },
-    { dstChainId: 5, to: src, height: 8629032, slot: keccak256(slot) },
-    { dstChainId: 5, to: src, height: 8629032, slot: keccak256(slot) },
+    {
+      dstChainId: 11155111, to: src, height:
+        3186410, slot: keccak256(slot)
+    },
   ]
 
   let tx

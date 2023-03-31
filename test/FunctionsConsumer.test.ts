@@ -1,0 +1,52 @@
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
+import { expect } from "chai"
+import { ethers } from "hardhat"
+import fs from "fs"
+import { ExecuteRequestEventObject } from "../typechain-types/contracts/mock/FunctionsMock"
+import { MESSAGE, SAMPLERESPONSE, SOURCE } from "./utils/constants"
+import { BigNumber, ContractReceipt } from "ethers"
+import { deployFunctionMockFixture, deployLightClientMockFixture } from "./utils/fixture"
+import { keccak256 } from "ethers/lib/utils"
+
+describe("Chainlink Functions", async function () {
+
+  it('executeRequest()', async function () {
+    const { functionMock } = await loadFixture(deployFunctionMockFixture)
+    const request: ExecuteRequestEventObject = {
+      source: SOURCE,
+      secrets: MESSAGE,
+      secretsLocation: 0,
+      args: [`[["https://polygon-mumbai.infura.io/v3", "80001", "32130734"], ["https://polygon-mumbai.infura.io/v3", "80001", "33668401"]]`],
+      subscriptionId: BigNumber.from(1),
+      gasLimit: 100000
+    }
+    const tx = await functionMock.executeRequest(request.source, request.secrets, request.secretsLocation, request.args, request.subscriptionId, request.gasLimit)
+    const resTx: ContractReceipt = await tx.wait()
+    const events = resTx.events
+
+    if (events !== undefined) {
+      const args = events[0].args
+      if (args !== undefined) {
+        expect(args.source).to.equal(request.source)
+        expect(args.secrets).to.equal(request.secrets.toLowerCase())
+        expect(args.secretsLocation).to.equal(request.secretsLocation)
+        expect(args.args[0]).to.equal(request.args[0])
+        expect(args.subscriptionId).to.equal(request.subscriptionId)
+        expect(args.gasLimit).to.equal(request.gasLimit)
+      }
+    }
+  })
+
+  it("fillFulfillment()", async function () {
+    const { functionMock } = await loadFixture(deployFunctionMockFixture)
+    const { lcMock } = await loadFixture(deployLightClientMockFixture)
+    let tx = await functionMock.setLightClient(lcMock.address)
+    await tx.wait()
+
+    tx = await lcMock.setOracle(functionMock.address)
+    await tx.wait()
+
+    const reponse = SAMPLERESPONSE
+    tx = await functionMock.fillFulfillment(keccak256(BigNumber.from(0).toHexString()), reponse)
+  })
+})

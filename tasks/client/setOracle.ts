@@ -1,16 +1,16 @@
 import { task, types } from "hardhat/config";
 
-task("TASK_SET_ORACLE", "set light client contract address on Oracle contract")
+task("TASK_SET_ORACLE", "set orcale contract address on Light Client contract")
   .addParam<string>("oracle", "the oracle contract address", "", types.string)
   .addParam<string>("client", "the light client contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const gateway = await hre.ethers.getContractAt("OracleMock", taskArgs.oracle);
+      const client = await hre.ethers.getContractAt("LightClientMock", taskArgs.client);
 
-      const client = taskArgs.client
+      const oracle = taskArgs.oracle
       try {
-        let tx = await (await gateway.setClient(client, { gasLimit: 2000000 })).wait()
-        console.log(`✅ [${hre.network.name}] setClient(${client})`)
+        let tx = await (await client.setOracle(oracle, { gasLimit: 2000000 })).wait()
+        console.log(`✅ [${hre.network.name}] setOracle(${oracle})`)
         console.log(` tx: ${tx.transactionHash}`)
 
       } catch (e: any) {
@@ -18,7 +18,7 @@ task("TASK_SET_ORACLE", "set light client contract address on Oracle contract")
           console.log("*source already set*")
         } else {
           console.log(e)
-          console.log(`❌ [${hre.network.name}] setClient(${client})`)
+          console.log(`❌ [${hre.network.name}] setOracle(${oracle})`)
         }
       }
 

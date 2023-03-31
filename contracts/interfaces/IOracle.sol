@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../QueryType.sol";
-
 interface IOracle {
-    function notifyOracle(
-        QueryType.OracleQuery[] memory queries
-    ) external returns (bytes32 requestId);
+    enum Location {
+        Inline,
+        Remote
+    }
+
+    function executeRequest(
+        string calldata source,
+        bytes calldata secrets,
+        Location secretsLocation,
+        string[] calldata args,
+        uint64 subscriptionId,
+        uint32 gasLimit
+    ) external returns (bytes32);
 }
