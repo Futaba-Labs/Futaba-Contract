@@ -38,6 +38,11 @@ contract FunctionsMock is IOracle {
         return bytes32(0);
     }
 
+    /**
+     * @notice This function receives data from Oracle (Chainlink Funcitons) to update block headers in Light Client
+     * @param requestId Block header information received from Oracle
+     * @param response Block header information received from Oracle
+     */
     function fillFulfillment(
         bytes32 requestId,
         bytes calldata response
@@ -45,7 +50,6 @@ contract FunctionsMock is IOracle {
         uint256 length = uint256(
             stringToUint(getElementAtIndex(string(response), 0))
         );
-        console.log("length: %s", length);
         QueryType.OracleResponse[]
             memory responses = new QueryType.OracleResponse[](length);
 
@@ -83,8 +87,8 @@ contract FunctionsMock is IOracle {
         lightClient = ILightClientMock(_lightClient);
     }
 
-    // stringからuintに変換する関数
-    function stringToUint(string memory s) public pure returns (uint) {
+    /*  Helper functions */
+    function stringToUint(string memory s) internal pure returns (uint) {
         bytes memory b = bytes(s);
         uint result = 0;
         for (uint i = 0; i < b.length; i++) {
@@ -98,7 +102,7 @@ contract FunctionsMock is IOracle {
     function getElementAtIndex(
         string memory _str,
         uint256 _index
-    ) public pure returns (string memory) {
+    ) internal pure returns (string memory) {
         bytes memory strBytes = bytes(_str);
         uint256 index = 0;
         uint256 start = 0;

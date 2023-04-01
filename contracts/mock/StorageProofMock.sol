@@ -8,6 +8,11 @@ import "../lib/TrieProofs.sol";
 // Uncomment this line to use console.log
 import "hardhat/console.sol";
 
+/**
+ * @title StorageProofMock contract
+ * @notice This contract verifies storage proofs
+ * @notice NOT AUDITED
+ */
 contract StorageProofMock {
     struct AccountProof {
         bytes32 root;

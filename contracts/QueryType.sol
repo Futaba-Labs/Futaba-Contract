@@ -5,7 +5,9 @@ contract QueryType {
     struct QueryRequest {
         uint32 dstChainId;
         address to;
+        // block height
         uint256 height;
+        // storage slot
         bytes32 slot;
     }
 
@@ -17,6 +19,7 @@ contract QueryType {
     struct OracleResponse {
         uint32 dstChainId;
         uint256 height;
+        // state root
         bytes32 root;
     }
 

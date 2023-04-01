@@ -8,6 +8,11 @@ import "../interfaces/IOracle.sol";
 import "../interfaces/ILightClient.sol";
 import "../interfaces/ILightClientMock.sol";
 
+/**
+ * @title Oracle Mock contract
+ * @notice This is Oracle's mock contract when using Chainlink Node Operator
+ * @notice Not currently in use
+ */
 contract OracleMock is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
 

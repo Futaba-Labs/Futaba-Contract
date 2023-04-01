@@ -10,6 +10,11 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "hardhat/console.sol";
 
+/**
+ * @title Gateway contract
+ * @notice This contract sends and receives queries
+ * @notice NOT AUDITED
+ */
 contract Gateway is IGateway, Ownable {
     uint64 public nonce;
 
