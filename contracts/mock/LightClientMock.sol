@@ -73,12 +73,12 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
                     '"]'
                 )
             );
+            console.log("args: %s", args);
             if (i != queries.length - 1) {
                 args = string(abi.encodePacked(args, ","));
             }
         }
         args = string(abi.encodePacked(args, "]"));
-        console.log("args: %s", args);
 
         string[] memory params = new string[](1);
         params[0] = args;

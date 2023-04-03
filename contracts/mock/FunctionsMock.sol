@@ -60,7 +60,6 @@ contract FunctionsMock is IOracle {
         string[] memory results = new string[](3);
         while (keccak256(abi.encode(result)) != keccak256(abi.encode(""))) {
             result = getElementAtIndex(string(response), index);
-            console.log(result);
             results[resultIndex] = result;
             if (resultIndex == 2) {
                 uint32 chainId = uint32(stringToUint(results[0]));
@@ -81,6 +80,7 @@ contract FunctionsMock is IOracle {
             index++;
         }
         lightClient.updateHeader(responses);
+        console.log("lightClient", address(lightClient));
     }
 
     function setLightClient(address _lightClient) external {

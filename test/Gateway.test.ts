@@ -1,131 +1,141 @@
-// import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
-// import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
-// import { expect } from "chai"
-// import { ethers } from "hardhat"
-// import { RLP, concat, defaultAbiCoder, hexZeroPad, keccak256 } from "ethers/lib/utils"
-// import { BigNumber, ContractReceipt } from "ethers"
-// import { Alchemy, Network } from "alchemy-sdk"
-// import * as dotenv from 'dotenv'
-// //@ts-ignore
-// import { GetProof } from 'eth-proof'
-// import { getAccountProof, getSlots, getStorageProof } from "./utils/helper"
-// import { Gateway, QueryType } from "../typechain-types/contracts/Gateway"
-// import { MESSAGE, SRC, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS } from "./utils/constants"
-// import { deployGatewayFixture, deployLightClientMockFixture } from "./utils/fixture"
-// dotenv.config()
+import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
+import { expect, use } from "chai"
+import { ethers } from "hardhat"
+import { RLP, concat, defaultAbiCoder, hexZeroPad, keccak256 } from "ethers/lib/utils"
+import { BigNumber, ContractReceipt } from "ethers"
+import { Alchemy, Network } from "alchemy-sdk"
+import * as dotenv from 'dotenv'
+//@ts-ignore
+import { GetProof } from 'eth-proof'
+import { getAccountProof, getSlots, getStorageProof, setup, updateHeader } from "./utils/helper"
+import { Gateway, QueryType } from "../typechain-types/contracts/Gateway"
+import { DSTCHAINID, HEIGTH, MESSAGE, PROOF, SOURCE, SRC, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS } from "./utils/constants"
+import { deployFunctionMockFixture, deployGatewayFixture, deployLightClientMockFixture, deployReceiverMockFixture } from "./utils/fixture"
+dotenv.config()
 
 
-// describe("Gateway", async function () {
-//   // We define a fixture to reuse the same setup in every test.
-//   // We use loadFixture to run this setup once, snapshot that state,
-//   // and reset Hardhat Network to that snapshot in every test.
+describe("Gateway", async function () {
+  it("query()", async function () {
+    const { owner, gateway } = await loadFixture(deployGatewayFixture)
+    // @dev When implemented in fixture, the test did not pass
+    const FunctionMock = await ethers.getContractFactory("FunctionsMock")
+    const functionMock = await FunctionMock.deploy()
+    await functionMock.deployed()
 
-//   async function deployOracleMockFixture() {
-//     // Contracts are deployed using the first signer/account by default
-//     const [owner, otherAccount] = await ethers.getSigners()
+    const LightClientMock = await ethers.getContractFactory("LightClientMock")
+    const lcMock = await LightClientMock.deploy()
+    await lcMock.deployed()
 
-//     const OracleMock = await ethers.getContractFactory("OracleMock")
-//     const oracleMock = await OracleMock.deploy(SRC)
+    // @dev Initialization of each contract
+    let tx = await lcMock.setOracle(functionMock.address)
+    tx = await lcMock.setSubscriptionId(0)
+    await tx.wait()
+    tx = await lcMock.setSource(SOURCE)
+    await tx.wait()
+    tx = await functionMock.setLightClient(lcMock.address)
 
-//     return { oracleMock, owner, otherAccount }
-//   }
+    const slots = getSlots()
+    const src = SRC
+    const callBack = TEST_CALLBACK_ADDRESS
+    const lightClient = lcMock.address
+    const message = MESSAGE
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      // { dstChainId: 80001, to: src, height: 32130734, slot: slots[1] }
+    ]
+    tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+    const resTx: ContractReceipt = await tx.wait()
+    const events = resTx.events
 
-//   it("query()", async function () {
-//     const { gateway } = await loadFixture(deployGatewayFixture)
-//     const { lcMock } = await loadFixture(deployLightClientMockFixture)
-//     const { oracleMock } = await loadFixture(deployOracleMockFixture)
-//     let tx = await lcMock.setOracle(oracleMock.address)
-//     await tx.wait()
-//     tx = await oracleMock.setClient(lcMock.address)
-//     const slots = getSlots()
-//     const src = SRC
-//     const callBack = TEST_CALLBACK_ADDRESS
-//     const lightClient = lcMock.address
-//     const message = MESSAGE
-//     const QueryRequests: QueryType.QueryRequestStruct[] = [
-//       { dstChainId: 5, to: src, height: 32130734, slot: slots[0] },
-//       { dstChainId: 80001, to: src, height: 32130734, slot: slots[1] },
-//     ]
-//     tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-//     const resTx: ContractReceipt = await tx.wait()
-//     const events = resTx.events
+    if (events !== undefined) {
+      const args = events[0].args
+      if (args !== undefined) {
+        expect(args.callBack).equal(callBack)
+        expect(args.lightClient).equal(lightClient)
+        expect(args.message).equal(message.toLowerCase())
+        const decodedPayload = ethers.utils.defaultAbiCoder.decode(["address", "tuple(uint32, address, uint256, bytes32)[]", "bytes", "address"], args.packet)
+        expect(decodedPayload[0]).equal(callBack)
+        expect(decodedPayload[2]).equal(message.toLowerCase())
+        expect(decodedPayload[3]).equal(lightClient)
 
-//     if (events !== undefined) {
-//       const args = events[0].args
-//       if (args !== undefined) {
-//         expect(args.callBack).equal(callBack)
-//         expect(args.lightClient).equal(lightClient)
-//         expect(args.message).equal(message.toLowerCase())
-//         const decodedPayload = ethers.utils.defaultAbiCoder.decode(["address", "tuple(uint32, address, uint256, bytes32)[]", "bytes", "address"], args.packet)
-//         expect(decodedPayload[0]).equal(callBack)
-//         expect(decodedPayload[2]).equal(message.toLowerCase())
-//         expect(decodedPayload[3]).equal(lightClient)
+        for (let i = 0; i < decodedPayload[1].length; i++) {
+          const requestQuery = QueryRequests[i]
+          const query = decodedPayload[1][i];
+          expect(query[0]).equal(requestQuery.dstChainId)
+          expect(query[1]).equal(requestQuery.to)
+          expect(query[2]).equal(requestQuery.height)
+          expect(query[3]).equal(requestQuery.slot)
+        }
+      }
+    }
+  })
 
-//         for (let i = 0; i < decodedPayload[1].length; i++) {
-//           const requestQuery = QueryRequests[i]
-//           const query = decodedPayload[1][i];
-//           expect(query[0]).equal(requestQuery.dstChainId)
-//           expect(query[1]).equal(requestQuery.to)
-//           expect(query[2]).equal(requestQuery.height)
-//           expect(query[3]).equal(requestQuery.slot)
-//         }
-//       }
-//     }
-//   })
+  async function requestQuery(gateway: Gateway, slots: string[]) {
+    // @dev When implemented in fixture, the test did not pass
+    const FunctionMock = await ethers.getContractFactory("FunctionsMock")
+    const functionMock = await FunctionMock.deploy()
+    await functionMock.deployed()
 
-//   async function requestQuery(gateway: Gateway, slots: string[]) {
-//     const { lcMock } = await loadFixture(deployLightClientMockFixture)
-//     const src = SRC
-//     const callBack = TEST_CALLBACK_ADDRESS
-//     const lightClient = lcMock.address
-//     const message = MESSAGE
-//     const QueryRequests: QueryType.QueryRequestStruct[] = [
-//       { dstChainId: 5, to: src, height: 8629032, slot: slots[0] }
-//     ]
-//     let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-//     const resTx: ContractReceipt = await tx.wait()
-//     const events = resTx.events
-//     return { events, queries: QueryRequests }
-//   }
+    const LightClientMock = await ethers.getContractFactory("LightClientMock")
+    const lcMock = await LightClientMock.deploy()
+    await lcMock.deployed()
 
-//   it("receiveQuery()", async function () {
-//     const { gateway } = await loadFixture(deployGatewayFixture)
-//     const slots = getSlots()
+    const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
+    const receiverMock = await ReceiverMock.deploy()
+    await receiverMock.deployed()
 
-//     const { events, queries } = await requestQuery(gateway, slots)
+    // @dev Initialization of each contract
+    let tx = await lcMock.setOracle(functionMock.address)
+    tx = await lcMock.setSubscriptionId(0)
+    await tx.wait()
+    tx = await lcMock.setSource(SOURCE)
+    await tx.wait()
+    tx = await functionMock.setLightClient(lcMock.address)
+    await updateHeader(functionMock)
 
-//     // relayer action
-//     if (events !== undefined) {
-//       const args = events[0].args
-//       if (args !== undefined) {
-//         const queryId = args.queryId
-//         const lightClient = args.lightClient
-//         const callBack = args.callBack
-//         const packet = args.message
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = MESSAGE
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] }
+    ]
+    tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+    const resTx: ContractReceipt = await tx.wait()
+    const events = resTx.events
+    return { events, queries: QueryRequests, receiver: receiverMock.address }
+  }
 
-//         const accountProof = await getAccountProof(`https://eth-goerli.g.alchemy.com/v2/${process.env.ETHEREUM_GOERLI_API_KEY}`, SRC, 8629032)
+  it("receiveQuery()", async function () {
+    const { gateway } = await loadFixture(deployGatewayFixture)
+    const slots = getSlots()
 
-//         const storageProof = await getStorageProof(`https://eth-goerli.g.alchemy.com/v2/${process.env.ETHEREUM_GOERLI_API_KEY}`, SRC, 8629032, slots[0])
+    const { events, queries } = await requestQuery(gateway, slots)
 
-//         console.log(`storageProof: ${JSON.stringify(storageProof)}`)
+    // relayer action
+    if (events !== undefined) {
+      const args = events[0].args
+      if (args !== undefined) {
+        const queryId = args.queryId
 
-//         const proof = ethers.utils.defaultAbiCoder.encode(["tuple(bytes32 root, address account, bytes proof)", "tuple(bytes32 root, bytes32 path, bytes proof)[]"], [accountProof, [storageProof]])
+        // @dev get proof from infura
+        // const endpoint = `https://sepolia.infura.io/v3/${process.env.ETHEREUM_SEPOLIA_API_KEY}`
 
-//         const proofs = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"], [[{ dstChainId: queries[0].dstChainId, height: queries[0].height, proof: proof }]])
+        // const accountProof = await getAccountProof(endpoint, SRC, HEIGTH)
 
-//         const queryResponse: QueryType.QueryResponseStruct = {
-//           queryId, lightClient, callBack, packet, proof: proofs
-//         }
+        // const storageProof = await getStorageProof(endpoint, SRC, HEIGTH, slots[0])
 
-//         //WARNING if we use gateway.receiveQuery(queryResponse) directly, it will fail
-//         let tx = await gateway.receiveQuery(queryResponse)
-//         const resTx: ContractReceipt = await tx.wait()
-//         const events = resTx.events
+        // const proof = ethers.utils.defaultAbiCoder.encode(["tuple(bytes32 root, address account, bytes proof)", "tuple(bytes32 root, bytes32 path, bytes proof)[]"], [accountProof, [storageProof]])
 
-//         console.log(resTx)
+        // const proofs = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"], [[{ dstChainId: queries[0].dstChainId, height: queries[0].height, proof: proof }]])
 
-//       }
-//     }
+        const queryResponse: QueryType.QueryResponseStruct = {
+          queryId, proof: PROOF
+        }
+        await expect(gateway.receiveQuery(queryResponse)).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
 
-//   })
-// })
+      }
+    }
+  })
+})

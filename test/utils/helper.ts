@@ -4,6 +4,8 @@ import { RLP, concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 import { GetProof } from 'eth-proof'
 //@ts-ignore
 import { Proof } from 'eth-object'
+import { FunctionsMock, LightClientMock } from "../../typechain-types";
+import { SAMPLERESPONSE, SOURCE } from "./constants";
 
 export const getSlots = () => {
   const newKeyPreimage1 = concat([
@@ -78,4 +80,41 @@ export const getStorageProof = async (rpcURL: string, src: string, blockNumber: 
     path: slot,
     proof: RLP.encode(Proof.fromRpc(result.result.storageProof[0].proof))
   }
+}
+
+export const setOrcale = async (lcMock: LightClientMock, oracle: string) => {
+  const tx = await lcMock.setOracle(oracle)
+  const resTx = await tx.wait()
+  console.log(resTx)
+}
+
+export const setLightClient = async (functionMock: FunctionsMock, lightClient: string) => {
+  const tx = await functionMock.setLightClient(lightClient)
+  const resTx = await tx.wait()
+  console.log(resTx)
+}
+
+export const setSubscriptionId = async (lcMock: LightClientMock, subscriptionId: number) => {
+  const tx = await lcMock.setSubscriptionId(subscriptionId)
+  const resTx = await tx.wait()
+  console.log(resTx)
+}
+
+export const setSource = async (lcMock: LightClientMock) => {
+  const tx = await lcMock.setSource(SOURCE)
+  const resTx = await tx.wait()
+  console.log(resTx)
+}
+
+export const setup = async (lcMock: LightClientMock, functionMock: FunctionsMock) => {
+  await setOrcale(lcMock, functionMock.address)
+  await setLightClient(functionMock, lcMock.address)
+  await setSource(lcMock)
+  await setSubscriptionId(lcMock, 0)
+}
+
+export const updateHeader = async (functionMock: FunctionsMock) => {
+  const tx = await functionMock.fillFulfillment(hexZeroPad("0x1aaaeb006AC4DE12C4630BB44ED00A764f37bef8", 32), SAMPLERESPONSE)
+  await tx.wait()
+  console.log('test')
 }

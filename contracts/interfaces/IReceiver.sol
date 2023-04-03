@@ -16,6 +16,7 @@ interface IReceiver {
      * @param message Data to be used in the callback sent at the time of the request
      */
     function receiveQuery(
+        bytes32 queryId,
         bytes[] memory results,
         QueryType.QueryRequest[] memory queries,
         bytes memory message

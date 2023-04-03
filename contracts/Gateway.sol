@@ -18,9 +18,34 @@ import "hardhat/console.sol";
 contract Gateway is IGateway, Ownable {
     uint64 public nonce;
 
-    mapping(bytes32 => bytes) public resultStore;
+    enum QueryStatus {
+        Pending,
+        Success,
+        Failed
+    }
+    struct Query {
+        address lightClient;
+        address callBack;
+        bytes message;
+        QueryType.QueryRequest[] queries;
+        QueryStatus status;
+    }
 
-    mapping(bytes32 => QueryType.QueryRequest[]) public queryStore;
+    mapping(bytes32 => bytes[]) public resultStore;
+
+    mapping(bytes32 => Query) public queryStore;
+
+    event SaveResult(bytes32 indexed queryId, bytes[] results);
+    event ReceiveQuery(
+        bytes32 indexed queryId,
+        bytes message,
+        address lightClient,
+        address callBack,
+        bytes[] results
+    );
+
+    error InvalidQueryId(bytes32 queryId);
+    error InvalidProof(bytes32 queryId);
 
     constructor() {
         nonce = 1;
@@ -38,7 +63,6 @@ contract Gateway is IGateway, Ownable {
                 q.to != address(0x0),
                 "Futaba: Invalid target contract zero address"
             );
-            console.log("query: %s", Strings.toString(q.height));
         }
 
         require(
@@ -63,10 +87,13 @@ contract Gateway is IGateway, Ownable {
             lightClient,
             callBack
         );
-        QueryType.QueryRequest[] storage requests = queryStore[queryId];
+        queryStore[queryId].lightClient = lightClient;
+        queryStore[queryId].callBack = callBack;
+        queryStore[queryId].message = message;
         for (uint i = 0; i < queries.length; i++) {
-            requests.push(queries[i]);
+            queryStore[queryId].queries.push(queries[i]);
         }
+        queryStore[queryId].status = QueryStatus.Pending;
         nonce++;
 
         ILightClient lc = ILightClient(lightClient);
@@ -76,22 +103,31 @@ contract Gateway is IGateway, Ownable {
     function receiveQuery(
         QueryType.QueryResponse memory response
     ) external payable {
-        require(
-            response.lightClient != address(0x0),
-            "Futaba: Invalid light client contract"
-        );
-
         bytes32 queryId = response.queryId;
-        QueryType.QueryRequest[] memory queries = queryStore[queryId];
-        require(queries.length > 0, "Futaba: Invalid query id");
+        address lc = queryStore[queryId].lightClient;
+        address callBack = queryStore[queryId].callBack;
+        bytes memory message = queryStore[queryId].message;
+        QueryType.QueryRequest[] memory queries = queryStore[queryId].queries;
+        if (queries.length == 0) {
+            queryStore[queryId].status = QueryStatus.Failed;
+            revert InvalidQueryId(queryId);
+        }
 
-        ILightClient lightClient = ILightClient(response.lightClient);
+        ILightClient lightClient = ILightClient(lc);
         (bool success, bytes[] memory results) = lightClient.verify(
             response.proof
         );
-        require(success, "Futaba: Invalid proof");
+        if (!success) {
+            queryStore[queryId].status = QueryStatus.Failed;
+            revert InvalidProof(queryId);
+        }
 
-        IReceiver callBack = IReceiver(response.callBack);
-        callBack.receiveQuery(results, queries, response.packet);
+        resultStore[queryId] = results;
+        emit SaveResult(queryId, results);
+
+        IReceiver receiver = IReceiver(callBack);
+        receiver.receiveQuery(queryId, results, queries, message);
+        queryStore[queryId].status = QueryStatus.Success;
+        emit ReceiveQuery(queryId, message, lc, callBack, results);
     }
 }

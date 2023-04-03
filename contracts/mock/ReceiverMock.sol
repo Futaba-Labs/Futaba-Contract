@@ -11,16 +11,18 @@ import "../QueryType.sol";
  */
 contract ReceiverMock is IReceiver {
     event QueryReceived(
+        bytes32 queryId,
         bytes[] results,
         QueryType.QueryRequest[] queries,
         bytes message
     );
 
     function receiveQuery(
+        bytes32 queryId,
         bytes[] memory results,
         QueryType.QueryRequest[] memory queries,
         bytes memory message
     ) external {
-        emit QueryReceived(results, queries, message);
+        emit QueryReceived(queryId, results, queries, message);
     }
 }

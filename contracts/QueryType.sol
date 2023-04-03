@@ -25,9 +25,6 @@ contract QueryType {
 
     struct QueryResponse {
         bytes32 queryId;
-        address lightClient;
-        address callBack;
-        bytes packet;
         bytes proof;
     }
 }

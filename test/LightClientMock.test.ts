@@ -3,11 +3,12 @@ import { expect } from "chai"
 import { deployFunctionMockFixture, deployLightClientMockFixture } from "./utils/fixture"
 import { SAMPLEQUERIES, SOURCE, SRC } from "./utils/constants"
 import { LightClientMock } from "../typechain-types"
-import { ContractReceipt, ethers } from "ethers"
 import { QueryType } from "../typechain-types/contracts/mock/LightClientMock"
 import { getAccountProof, getSlots, getStorageProof } from "./utils/helper"
 
 import * as dotenv from 'dotenv'
+import { ethers } from "hardhat"
+import { ContractReceipt } from "ethers/lib/ethers"
 dotenv.config()
 
 describe("LightClientMock", async function () {
@@ -45,6 +46,22 @@ describe("LightClientMock", async function () {
       const args = events[0].args
       if (args !== undefined) {
         expect(args.source).to.equal(SOURCE)
+      }
+    }
+  })
+
+  it("setOracle()", async function () {
+    const { lcMock } = await loadFixture(deployLightClientMockFixture)
+    const FunctionMock = await ethers.getContractFactory("FunctionsMock")
+    const functionMock = await FunctionMock.deploy()
+    await functionMock.deployed()
+    const tx = await lcMock.setOracle(functionMock.address)
+    const resTx = await tx.wait()
+    const events = resTx.events
+    if (events !== undefined) {
+      const args = events[0].args
+      if (args !== undefined) {
+        expect(args.oracle).to.equal(functionMock.address)
       }
     }
   })
