@@ -38,23 +38,19 @@ for (let i = 0; i < oracleQueries.length; i++) {
 
 const responses = await Promise.all(requests)
 
-const results = []
+// TODO modify
+let results = responses.length.toString() + ","
 for (let i = 0; i < responses.length; i++) {
   const response = responses[i]
   console.log(response)
   const query = oracleQueries[i]
   const root = response.data.result.stateRoot
   if (!response.error) {
-    results.push({
-      dstChainId: query[1],
-      height: query[2],
-      root
-    })
+    results = results + query[1] + "," + query[2] + "," + BigInt(root).toString() + ","
   } else {
     console.log("Response Error")
   }
 }
-
 // price * 100 to move by 2 decimals (Solidity doesn't support decimals)
 // Math.round() to round to the nearest integer
 // Functions.encodeUint256() helper function to encode the result from uint256 to bytes

@@ -65,6 +65,7 @@ contract FunctionsMock is IOracle {
                 uint32 chainId = uint32(stringToUint(results[0]));
                 uint256 height = uint256(stringToUint(results[1]));
                 bytes32 root = bytes32(uint256(stringToUint(results[2])));
+                console.logBytes32(root);
 
                 QueryType.OracleResponse memory res = QueryType.OracleResponse(
                     chainId,

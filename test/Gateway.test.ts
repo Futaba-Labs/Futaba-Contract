@@ -2,7 +2,7 @@ import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 import { expect, use } from "chai"
 import { ethers } from "hardhat"
-import { RLP, concat, defaultAbiCoder, hexZeroPad, keccak256 } from "ethers/lib/utils"
+import { RLP, concat, defaultAbiCoder, formatEther, hexZeroPad, keccak256 } from "ethers/lib/utils"
 import { BigNumber, ContractReceipt } from "ethers"
 import { Alchemy, Network } from "alchemy-sdk"
 import * as dotenv from 'dotenv'

@@ -23,4 +23,8 @@ interface ILightClient {
     function verify(
         bytes memory message
     ) external returns (bool, bytes[] memory);
+
+    function estimateFee(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (uint256);
 }

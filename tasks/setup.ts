@@ -9,7 +9,7 @@ task("TASK_SETUP", "Setup all contract")
       const client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT")
 
       // const oracle = await hre.run("TASK_DEPLOY_ORACLE")
-      const oracle = "0xd09cA533A423243ab3d280076C24718e3Dc6e55f"
+      const oracle = "0x4BFf081728E6B97DCC8035Ce5c555a272d57Ed12"
 
       // await hre.run("TASK_SET_LIGHT_CLIENT", { oracle, client })
       await hre.run("TASK_SET_ORACLE", { oracle, client })

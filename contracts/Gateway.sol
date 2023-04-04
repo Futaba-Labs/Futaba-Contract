@@ -7,7 +7,11 @@ import "./interfaces/IReceiver.sol";
 import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {GelatoRelayContext} from "@gelatonetwork/relay-context/contracts/GelatoRelayContext.sol";
 import "hardhat/console.sol";
 
 /**
@@ -15,7 +19,8 @@ import "hardhat/console.sol";
  * @notice This contract sends and receives queries
  * @notice NOT AUDITED
  */
-contract Gateway is IGateway, Ownable {
+contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
+    using SafeMath for uint;
     uint64 public nonce;
 
     enum QueryStatus {
@@ -56,7 +61,7 @@ contract Gateway is IGateway, Ownable {
         address lightClient,
         address callBack,
         bytes calldata message
-    ) external payable {
+    ) external payable nonReentrant {
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             require(
@@ -102,7 +107,7 @@ contract Gateway is IGateway, Ownable {
 
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable {
+    ) external payable onlyGelatoRelay {
         bytes32 queryId = response.queryId;
         address lc = queryStore[queryId].lightClient;
         address callBack = queryStore[queryId].callBack;
@@ -129,5 +134,20 @@ contract Gateway is IGateway, Ownable {
         receiver.receiveQuery(queryId, results, queries, message);
         queryStore[queryId].status = QueryStatus.Success;
         emit ReceiveQuery(queryId, message, lc, callBack, results);
+        _transferRelayFee();
+    }
+
+    function estimateFee(
+        address lightClient,
+        QueryType.QueryRequest[] memory queries
+    ) public view returns (uint256) {
+        require(
+            lightClient != address(0x0),
+            "Futaba: Invalid light client contract"
+        );
+        ILightClient lc = ILightClient(lightClient);
+        uint256 lcFee = lc.estimateFee(queries);
+        uint256 relayerFee = _getFee();
+        return lcFee.add(relayerFee);
     }
 }

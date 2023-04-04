@@ -21,18 +21,6 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
 
     using TrieProofs for bytes;
 
-    mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
-        public approvedStorageRoots;
-
-    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
-    mapping(uint32 => string) public providerURLs;
-
-    address public oracle;
-
-    string public source;
-
-    uint64 public subscriptionId;
-
     struct Proof {
         uint32 dstChainId;
         uint256 height;
@@ -48,6 +36,24 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
         bytes32 path;
         bytes proof;
     }
+    struct Config {
+        uint64 baseGas;
+        uint64 gasPerSlot;
+    }
+
+    mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
+        public approvedStorageRoots;
+
+    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
+    mapping(uint32 => string) public providerURLs;
+
+    address public oracle;
+
+    string public source;
+
+    uint64 public subscriptionId;
+
+    Config public config;
 
     event SetOracle(address oracle);
 
@@ -56,6 +62,14 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
     event SetSubscriptionId(uint64 subscriptionId);
 
     event SetProviderURL(uint32 chainId, string url);
+
+    event SetConfig(uint64 baseGas, uint64 gasPerSlot);
+
+    event UpdateStateRoot(
+        uint32 indexed chainId,
+        uint256 indexed height,
+        bytes32 root
+    );
 
     function requestQuery(QueryType.QueryRequest[] memory queries) external {
         string memory args = "[";
@@ -89,7 +103,7 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
             IOracle.Location.Inline,
             params,
             subscriptionId,
-            200000
+            300000
         );
     }
 
@@ -170,7 +184,18 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
                     response.height
                 ] = response.root;
             }
+            emit UpdateStateRoot(
+                response.dstChainId,
+                response.height,
+                response.root
+            );
         }
+    }
+
+    function estimateFee(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (uint256) {
+        return 0;
     }
 
     function setOracle(address _oracle) public {
@@ -212,6 +237,15 @@ contract LightClientMock is ILightClient, ILightClientMock, Ownable {
 
     function getSubscriptionId() public view returns (uint64) {
         return subscriptionId;
+    }
+
+    function setConfig(Config memory _config) public onlyOwner {
+        config = _config;
+        emit SetConfig(_config.baseGas, _config.gasPerSlot);
+    }
+
+    function getConfig() public view returns (Config memory) {
+        return config;
     }
 
     modifier onlyOracle() {
