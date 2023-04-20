@@ -5,12 +5,12 @@ task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
   .addParam<string>("oracle", "the gateway contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const client = await hre.ethers.getContractAt("LightClientMock", taskArgs.client);
+      const oracle = await hre.ethers.getContractAt("OracleMock", taskArgs.oracle);
 
-      const oracle = taskArgs.oracle
+      const client = taskArgs.client
       try {
-        let tx = await (await client.setOracle(oracle, { gasLimit: 2000000 })).wait()
-        console.log(`✅ [${hre.network.name}] setOracle(${oracle})`)
+        let tx = await (await oracle.setClient(client, { gasLimit: 2000000 })).wait()
+        console.log(`✅ [${hre.network.name}] setClient(${client})`)
         console.log(` tx: ${tx.transactionHash}`)
 
       } catch (e: any) {
@@ -18,7 +18,7 @@ task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
           console.log("*source already set*")
         } else {
           console.log(e)
-          console.log(`❌ [${hre.network.name}] setOracle(${oracle})`)
+          console.log(`❌ [${hre.network.name}] setClient(${client})`)
         }
       }
 

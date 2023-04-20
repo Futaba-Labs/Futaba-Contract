@@ -5,6 +5,7 @@ import { getSlots } from "../test/utils/helper";
 import { BigNumber } from "ethers";
 import { concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 import { CallWithSyncFeeRequest, GelatoRelay } from "@gelatonetwork/relay-sdk";
+import DEPLOYMENTS from "../constants/deployments.json"
 
 const relay = new GelatoRelay();
 
@@ -19,16 +20,20 @@ async function main() {
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
   ]);
 
-  const src = "0x779877A7B0D9E8603169DdbD7836e478b4624789"
+  const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
   const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b"
-  const lightClient = "0x54fF6f270a172022E03706f6A2eD86a8Db31fCA5"
+  const lightClient = DEPLOYMENTS.client[network.config.chainId?.toString() as keyof typeof DEPLOYMENTS.client]
   const message = MESSAGE
 
   const QueryRequests: QueryType.QueryRequestStruct[] = [
     {
-      dstChainId: 11155111, to: src, height:
-        3218047, slot: keccak256(slot)
+      dstChainId: 5, to: src, height:
+        8859630, slot: keccak256(slot)
     },
+    {
+      dstChainId: 5, to: src, height:
+        8859000, slot: keccak256(slot)
+    }
   ]
 
   let tx

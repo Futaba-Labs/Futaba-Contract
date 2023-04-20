@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
-import "../interfaces/IOracle.sol";
+import "../interfaces/IExternalAdapter.sol";
 import "../interfaces/ILightClient.sol";
 import "../interfaces/ILightClientMock.sol";
 
@@ -13,7 +13,7 @@ import "../interfaces/ILightClientMock.sol";
  * @notice This is Oracle's mock contract when using Chainlink Node Operator
  * @notice Not currently in use
  */
-contract OracleMock is ChainlinkClient, ConfirmedOwner {
+contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     using Chainlink for Chainlink.Request;
 
     bytes32 private jobId;
