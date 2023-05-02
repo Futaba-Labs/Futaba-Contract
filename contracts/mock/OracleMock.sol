@@ -7,6 +7,7 @@ import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 import "../interfaces/IExternalAdapter.sol";
 import "../interfaces/ILightClient.sol";
 import "../interfaces/ILightClientMock.sol";
+import "hardhat/console.sol";
 
 /**
  * @title Oracle Mock contract
@@ -37,7 +38,9 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         bytes memory encodedQueries = abi.encode(queries);
         Chainlink.addBytes(req, "queries", encodedQueries);
 
-        return sendChainlinkRequest(req, fee);
+        requestId = sendChainlinkRequest(req, fee);
+
+        return requestId;
     }
 
     function fulfill(

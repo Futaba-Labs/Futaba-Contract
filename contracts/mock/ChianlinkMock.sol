@@ -71,7 +71,7 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
                     accountProof.account
                 ] != bytes32("")
             ) {
-                // TODO need to implenment logic if value is more than 32 bytes
+                bytes memory result;
                 for (uint j = 0; j < storageProofs.length; j++) {
                     StorageProof memory storageProof = storageProofs[j];
                     require(
@@ -83,11 +83,13 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
                     bytes32 path = keccak256(
                         abi.encodePacked(storageProof.path)
                     );
-                    results[i] = storageProof.proof.verify(
+                    bytes memory value = storageProof.proof.verify(
                         storageProof.root,
                         path
                     );
+                    result = bytes.concat(result, value);
                 }
+                results[i] = result;
             } else {
                 EthereumDecoder.Account memory account = EthereumDecoder
                     .toAccount(
@@ -99,16 +101,19 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
                 approvedStorageRoots[proof.dstChainId][proof.height][
                     accountProof.account
                 ] = account.storageRoot;
+                bytes memory result;
                 for (uint j = 0; j < storageProofs.length; j++) {
                     StorageProof memory storageProof = storageProofs[j];
                     bytes32 path = keccak256(
                         abi.encodePacked(storageProof.path)
                     );
-                    results[i] = storageProof.proof.verify(
+                    bytes memory value = storageProof.proof.verify(
                         storageProof.root,
                         path
                     );
+                    result = bytes.concat(result, value);
                 }
+                results[i] = result;
             }
         }
         return (true, results);

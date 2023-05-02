@@ -7,7 +7,17 @@ dotenv.config();
 const accounts =
   process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [];
 const config: HardhatUserConfig = {
-  solidity: "0.8.17",
+  solidity:
+  {
+    compilers: [
+      {
+        version: "0.8.17"
+      },
+      {
+        version: "0.7.6"
+      }
+    ]
+  },
   etherscan: {
     apiKey: {
       goerli: process.env.ETHEREUM_SCAN_KEY || "",
