@@ -1,17 +1,30 @@
 {
-  "gateway": {
-    "80001": "0x21b75559E0bCAD1D95ef451a0259060F7e9594C4"
+  "mumbai": {
+    "gateway": "0x21b75559E0bCAD1D95ef451a0259060F7e9594C4",
+    "light_client": "0xEe86B915B9c15a6b358E0f838d7832591AAC8272",
+    "oracle": "0xb46E5e3A122Bf92AEf6669699c7aa65adB44b899",
+    "operator": "0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720",
+    "link_token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB"
   },
-  "client": {
-    "80001": "0xE6C7F6ce2082cF40227f72F854a614d284051593"
+  "goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
   },
-  "oracle": {
-    "80001": "0xD41A3E65BB745D9E784C69F870891FAA9C82CC2D"
+  "optimism-goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
   },
-  "operator": {
-    "80001": "0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720"
-  },
-  "link_token": {
-    "80001": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB"
+  "arbitrum-goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
   }
 }

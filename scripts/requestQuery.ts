@@ -20,19 +20,27 @@ async function main() {
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
   ]);
 
+  const slot2 = concat([
+    // Mappings' keys in Solidity must all be word-aligned (32 bytes)
+    hexZeroPad("0x2274d2C66dC7936044f7B46b7401c3F5187B78aa", 32),
+
+    // Similarly with the slot-index into the Solidity variable layout
+    hexZeroPad(BigNumber.from(0).toHexString(), 32),
+  ]);
+
   const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
   const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b"
-  const lightClient = DEPLOYMENTS.client[network.config.chainId?.toString() as keyof typeof DEPLOYMENTS.client]
+  const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].light_client
   const message = MESSAGE
 
   const QueryRequests: QueryType.QueryRequestStruct[] = [
     {
       dstChainId: 5, to: src, height:
-        8859630, slot: keccak256(slot)
+        8947355, slot: keccak256(slot)
     },
     {
       dstChainId: 5, to: src, height:
-        8859000, slot: keccak256(slot)
+        8947355, slot: keccak256(slot2)
     }
   ]
 

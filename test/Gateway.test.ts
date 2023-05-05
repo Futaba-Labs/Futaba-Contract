@@ -10,7 +10,7 @@ import * as dotenv from 'dotenv'
 import { GetProof } from 'eth-proof'
 import { getAccountProof, getSlots, getStorageProof, setup, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper"
 import { Gateway, QueryType } from "../typechain-types/contracts/Gateway"
-import { DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, MESSAGE, MULTI_VALUE_PROOF, PROOF, SINGLE_VALUE_PROOF, SOURCE, SRC, SRC_GOERLI, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS } from "./utils/constants"
+import { DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, MESSAGE, MULTI_QUERY_PROOF, MULTI_VALUE_PROOF, PROOF, SINGLE_VALUE_PROOF, SOURCE, SRC, SRC_GOERLI, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS } from "./utils/constants"
 import { deployFunctionMockFixture, deployGatewayFixture, deployLightClientMockFixture, deployReceiverMockFixture } from "./utils/fixture"
 import { ChainlinkMock, FunctionsMock, LightClientMock, LinkTokenMock, Operator, OracleMock } from "../typechain-types"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
@@ -220,14 +220,23 @@ describe("Gateway", async function () {
         if (queryArgs !== undefined) {
           const queryId = queryArgs.queryId
 
-          const queryResponse: QueryType.QueryResponseStruct = {
+          const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
+            queryId, proof: SINGLE_VALUE_PROOF
+          }
+          await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+
+          const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
             queryId, proof: MULTI_VALUE_PROOF
           }
-          await expect(gateway.receiveQuery(queryResponse, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+          await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+
+          const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
+            queryId, proof: MULTI_QUERY_PROOF
+          }
+          await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
 
         }
       }
     })
   })
-
 })

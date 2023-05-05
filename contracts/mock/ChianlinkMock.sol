@@ -5,14 +5,18 @@ import "../interfaces/ILightClient.sol";
 import "../interfaces/ILightClientMock.sol";
 import "../interfaces/IExternalAdapter.sol";
 import "../lib/TrieProofs.sol";
+import "../lib/RLPReader.sol";
 import "../lib/EthereumDecoder.sol";
 
 import "../QueryType.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "hardhat/console.sol";
 
-contract ChainlinkMock is ILightClient, ILightClientMock {
+contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
     using TrieProofs for bytes;
+    using RLPReader for RLPReader.RLPItem;
+    using RLPReader for bytes;
 
     mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
@@ -80,13 +84,7 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
                         ] == storageProof.root,
                         "Futaba: verify - different trie roots"
                     );
-                    bytes32 path = keccak256(
-                        abi.encodePacked(storageProof.path)
-                    );
-                    bytes memory value = storageProof.proof.verify(
-                        storageProof.root,
-                        path
-                    );
+                    bytes32 value = getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;
@@ -104,13 +102,7 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
                 bytes memory result;
                 for (uint j = 0; j < storageProofs.length; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    bytes32 path = keccak256(
-                        abi.encodePacked(storageProof.path)
-                    );
-                    bytes memory value = storageProof.proof.verify(
-                        storageProof.root,
-                        path
-                    );
+                    bytes32 value = getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;
@@ -151,7 +143,21 @@ contract ChainlinkMock is ILightClient, ILightClientMock {
         return 0;
     }
 
-    function setOracle(address _oracle) public {
+    function getStorageValue(
+        StorageProof memory storageProof
+    ) internal pure returns (bytes32) {
+        bytes32 path = keccak256(abi.encodePacked(uint256(storageProof.path)));
+        bytes32 value = bytes32(
+            storageProof
+                .proof
+                .verify(storageProof.root, path)
+                .toRlpItem()
+                .toUint()
+        );
+        return value;
+    }
+
+    function setOracle(address _oracle) public onlyOwner {
         oracle = _oracle;
     }
 

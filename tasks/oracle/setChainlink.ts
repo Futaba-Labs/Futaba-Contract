@@ -24,6 +24,8 @@ task("TASK_SET_CHAINLINK_ORACLE", "set chainlink oracle contract address")
         }
       }
 
+      console.log("\n")
+
       return null;
     }
   );

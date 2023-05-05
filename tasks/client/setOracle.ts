@@ -21,6 +21,7 @@ task("TASK_SET_ORACLE", "set orcale contract address on Light Client contract")
           console.log(`❌ [${hre.network.name}] setOracle(${oracle})`)
         }
       }
+      console.log("\n")
 
       return null;
     }
