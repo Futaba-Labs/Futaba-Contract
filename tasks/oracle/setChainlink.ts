@@ -2,7 +2,7 @@ import { task, types } from "hardhat/config";
 
 task("TASK_SET_CHAINLINK_ORACLE", "set chainlink oracle contract address")
   .addParam<string>("oracle", "oracle contract address", "", types.string)
-  .addParam<string>("operator", "oracle contract address", "", types.string)
+  .addParam<string>("operator", "operator contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
       const oracle = await hre.ethers.getContractAt("OracleMock", taskArgs.oracle);

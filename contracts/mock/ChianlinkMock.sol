@@ -64,6 +64,9 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
     ) public returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         bytes[] memory results = new bytes[](proofs.length);
+
+        checkRoot(proofs);
+
         for (uint i = 0; i < proofs.length; i++) {
             Proof memory proof = proofs[i];
             (
@@ -163,6 +166,24 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
 
     function getOracle() public view returns (address) {
         return oracle;
+    }
+
+    function getApprovedStateRoot(
+        uint32 chainId,
+        uint256 height
+    ) public view returns (bytes32) {
+        return approvedStateRoots[chainId][height];
+    }
+
+    function checkRoot(Proof[] memory proofs) internal view {
+        for (uint i = 0; i < proofs.length; i++) {
+            Proof memory proof = proofs[i];
+            require(
+                approvedStateRoots[proof.dstChainId][proof.height] ==
+                    bytes32(""),
+                "Futaba: verify - not exsit root"
+            );
+        }
     }
 
     modifier onlyOracle() {

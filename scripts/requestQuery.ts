@@ -30,8 +30,10 @@ async function main() {
 
   const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
   const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b"
-  const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].light_client
+  const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS]["light_client"]
   const message = MESSAGE
+
+  console.log(`slot: ${keccak256(slot)}`)
 
   const QueryRequests: QueryType.QueryRequestStruct[] = [
     {
@@ -40,8 +42,8 @@ async function main() {
     },
     {
       dstChainId: 5, to: src, height:
-        8947355, slot: keccak256(slot2)
-    }
+        8947377, slot: keccak256(slot2)
+    },
   ]
 
   let tx
