@@ -1,1 +1,30 @@
-{"mumbai":{"gateway":"0x21b75559E0bCAD1D95ef451a0259060F7e9594C4","light_client":"0x483fA7598B52eF69917d0E128f558fAdE96D1166","oracle":"0xb46E5e3A122Bf92AEf6669699c7aa65adB44b899","operator":"0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720","link_token":"0x326C977E6efc84E512bB9C30f76E30c160eD06FB"},"goerli":{"gateway":"","light_client":"","oracle":"","operator":"","link_token":""},"optimism-goerli":{"gateway":"","light_client":"","oracle":"","operator":"","link_token":""},"arbitrum-goerli":{"gateway":"","light_client":"","oracle":"","operator":"","link_token":""}}
+{
+  "mumbai": {
+    "gateway": "0x21b75559E0bCAD1D95ef451a0259060F7e9594C4",
+    "light_client": "0x0Bc8217cbEf5c844810f76c560bfaB87653b8e69",
+    "oracle": "0xb46E5e3A122Bf92AEf6669699c7aa65adB44b899",
+    "operator": "0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720",
+    "link_token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB"
+  },
+  "goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
+  },
+  "optimism-goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
+  },
+  "arbitrum-goerli": {
+    "gateway": "",
+    "light_client": "",
+    "oracle": "",
+    "operator": "",
+    "link_token": ""
+  }
+}
