@@ -4,8 +4,8 @@ import { RLP, concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 import { GetProof } from 'eth-proof'
 //@ts-ignore
 import { Proof } from 'eth-object'
-import { FunctionsMock, LightClientMock, OracleMock } from "../../typechain-types";
-import { SAMPLE_RESPONSE, SAMPLE_RESPONSE_FOR_NODE, SOURCE } from "./constants";
+import { FunctionsMock, LightClientMock, OracleMock, OracleTestMock } from "../../typechain-types";
+import { SAMPLE_RESPONSE, SAMPLE_RESPONSE_FOR_NODE, SOURCE, ZERO_ADDRESS } from "./constants";
 
 export const getSlots = () => {
   const newKeyPreimage1 = concat([
@@ -118,8 +118,7 @@ export const updateHeaderForFunctions = async (functionMock: FunctionsMock) => {
   await tx.wait()
 }
 
-export const updateHeaderForNode = async (oracleMock: OracleMock, requestId: string) => {
-  // const jobId = ethers.utils.hexZeroPad(ethers.utils.toUtf8Bytes(taskArgs.jobid), 32)
-  const tx = await oracleMock.fulfill(hexZeroPad(requestId, 32), SAMPLE_RESPONSE_FOR_NODE)
-  await tx.wait()
+export async function updateHeaderForNode(oracleMock: OracleTestMock, requestId: string = hexZeroPad(ZERO_ADDRESS, 32)) {
+  const tx = await oracleMock.fulfill(hexZeroPad(requestId, 32), SAMPLE_RESPONSE_FOR_NODE);
+  const res = await tx.wait();
 }

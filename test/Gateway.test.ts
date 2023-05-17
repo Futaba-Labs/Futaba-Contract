@@ -1,33 +1,33 @@
-import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers"
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
-import { expect, use } from "chai"
-import { ethers } from "hardhat"
-import { RLP, concat, defaultAbiCoder, formatEther, hexZeroPad, keccak256 } from "ethers/lib/utils"
-import { BigNumber, ContractReceipt } from "ethers"
-import { Alchemy, Network } from "alchemy-sdk"
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { expect } from 'chai';
 import * as dotenv from 'dotenv'
-//@ts-ignore
-import { GetProof } from 'eth-proof'
-import { getAccountProof, getSlots, getStorageProof, setup, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper"
-import { Gateway, QueryType } from "../typechain-types/contracts/Gateway"
-import { DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, MESSAGE, MULTI_QUERY_PROOF, MULTI_VALUE_PROOF, PROOF, SINGLE_VALUE_PROOF, SOURCE, SRC, SRC_GOERLI, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS } from "./utils/constants"
-import { deployFunctionMockFixture, deployGatewayFixture, deployLightClientMockFixture, deployReceiverMockFixture } from "./utils/fixture"
-import { ChainlinkMock, FunctionsMock, LightClientMock, LinkTokenMock, Operator, OracleMock } from "../typechain-types"
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
+import { LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, GatewayMock, ReceiverMock } from '../typechain-types';
+import { Gateway, QueryType } from '../typechain-types/contracts/Gateway';
+import { SOURCE, SRC, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, PROOF_FOR_FUNCTIONS, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, ZERO_ADDRESS } from './utils/constants';
+import { deployGatewayFixture, deployGatewayMockFixture } from './utils/fixture';
+import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from './utils/helper';
+import { ethers } from 'hardhat';
+import { ContractReceipt } from 'ethers';
+import { hexZeroPad } from 'ethers/lib/utils';
+
 dotenv.config()
 
 
 describe("Gateway", async function () {
-  let linkToken: LinkTokenMock,
+  let gateway: Gateway | GatewayMock,
+    linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
     lcMock: LightClientMock,
     oracleMock: OracleMock,
     chainlinkMock: ChainlinkMock,
     operator: Operator,
-    owner: SignerWithAddress
+    owner: SignerWithAddress,
+    receiverMock: ReceiverMock
 
   before(async () => {
     [owner] = await ethers.getSigners()
+    gateway = (await loadFixture(deployGatewayFixture)).gateway
     const LinkTokenMock = await ethers.getContractFactory("LinkTokenMock")
     const linkMock = await LinkTokenMock.deploy()
     await linkMock.deployed()
@@ -41,7 +41,7 @@ describe("Gateway", async function () {
     lcMock = await LightClientMock.deploy()
     await lcMock.deployed()
 
-    const OracleMock = await ethers.getContractFactory("OracleMock")
+    const OracleMock = await ethers.getContractFactory("OracleTestMock")
     oracleMock = await OracleMock.deploy(linkToken.address)
     await oracleMock.deployed()
 
@@ -52,6 +52,10 @@ describe("Gateway", async function () {
     const Operator = await ethers.getContractFactory("Operator")
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
+
+    const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
+    receiverMock = await ReceiverMock.deploy()
+    await receiverMock.deployed()
 
     let tx = await lcMock.setOracle(functionMock.address)
     tx = await lcMock.setSubscriptionId(0)
@@ -71,18 +75,120 @@ describe("Gateway", async function () {
 
   });
 
-  describe("When using Chainlink Functions", async function () {
-    it("query()", async function () {
-      const { gateway } = await loadFixture(deployGatewayFixture)
+  async function requestQueryWithFunctions() {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = MESSAGE
 
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    const tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+    const resTx: ContractReceipt = await tx.wait()
+    const events = resTx.events
+    let queryId = ""
+    if (events !== undefined) {
+      queryId = events[0].args?.queryId
+    }
+
+    return queryId
+  }
+
+  async function requestQueryWithChainlinkNode() {
+    const slots = getSlots()
+    const src = SRC_GOERLI
+    const callBack = receiverMock.address
+    const lightClient = chainlinkMock.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
+    ]
+    const tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+    const resTx: ContractReceipt = await tx.wait()
+    const events = resTx.events
+    let queryId = ""
+    if (events !== undefined) {
+      queryId = events[0].args?.queryId
+    }
+
+    return queryId
+  }
+
+  it("query() - invalid target client", async function () {
+    const slots = getSlots()
+    const src = ZERO_ADDRESS
+    const callBack = TEST_CALLBACK_ADDRESS
+    const lightClient = lcMock.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid target contract zero address")
+  })
+
+  it("query() - invalid light client", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = TEST_CALLBACK_ADDRESS
+    const lightClient = ZERO_ADDRESS
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid light client contract")
+  })
+
+  it("query() - invalid callback", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = ZERO_ADDRESS
+    const lightClient = lcMock.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid callback contract")
+  })
+
+  it("query() - onlyGelatoRelay", async function () {
+    const queryResponse: QueryType.QueryResponseStruct = {
+      queryId: hexZeroPad(ZERO_ADDRESS, 32), proof: PROOF_FOR_FUNCTIONS
+    }
+    await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWith("onlyGelatoRelay")
+  })
+
+  it("receiveQuery() - invalid query id", async function () {
+    gateway = (await loadFixture(deployGatewayMockFixture)).gateway
+    await requestQueryWithFunctions()
+    const queryResponse: QueryType.QueryResponseStruct = {
+      queryId: hexZeroPad(ZERO_ADDRESS, 32), proof: PROOF_FOR_FUNCTIONS
+    }
+    await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWithCustomError(gateway, "InvalidQueryId")
+  })
+
+  describe("When using Chainlink Functions", async function () {
+    it("query() - single query", async function () {
       const slots = getSlots()
       const src = SRC
       const callBack = TEST_CALLBACK_ADDRESS
       const lightClient = lcMock.address
       const message = MESSAGE
+
+      //TODO: need to set up mutiple query
       const QueryRequests: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
-        // { dstChainId: 80001, to: src, height: 32130734, slot: slots[1] }
+        { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
       ]
       let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
       const resTx: ContractReceipt = await tx.wait()
@@ -113,14 +219,7 @@ describe("Gateway", async function () {
 
     //@dev need to remove `onlyGelatoRelay` and `_transferRelayFee()` from `receiveQuery()`
     it("receiveQuery()", async function () {
-      const { gateway } = await loadFixture(deployGatewayFixture)
       const slots = getSlots()
-
-      const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
-      const receiverMock = await ReceiverMock.deploy()
-      await receiverMock.deployed()
-      await updateHeaderForFunctions(functionMock)
-
       const src = SRC
       const callBack = receiverMock.address
       const lightClient = lcMock.address
@@ -132,6 +231,9 @@ describe("Gateway", async function () {
       const resTx: ContractReceipt = await tx.wait()
       const events = resTx.events
 
+      // oracle action
+      await updateHeaderForFunctions(functionMock)
+
       // relayer action
       if (events !== undefined) {
         const args = events[0].args
@@ -139,7 +241,7 @@ describe("Gateway", async function () {
           const queryId = args.queryId
 
           const queryResponse: QueryType.QueryResponseStruct = {
-            queryId, proof: PROOF
+            queryId, proof: PROOF_FOR_FUNCTIONS
           }
           await expect(gateway.receiveQuery(queryResponse)).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
 
@@ -150,16 +252,15 @@ describe("Gateway", async function () {
 
   describe("When using Chainlink Node Operator", async function () {
     it("query()", async function () {
-      const { gateway } = await loadFixture(deployGatewayFixture)
-
       const slots = getSlots()
       const src = SRC
       const callBack = TEST_CALLBACK_ADDRESS
       const lightClient = chainlinkMock.address
       const message = MESSAGE
+
       const QueryRequests: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
-        // { dstChainId: 80001, to: src, height: 32130734, slot: slots[1] }
+        { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
       ]
       let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
       const resTx: ContractReceipt = await tx.wait()
@@ -189,54 +290,27 @@ describe("Gateway", async function () {
     })
 
     it("receiveQuery()", async function () {
-      const { gateway } = await loadFixture(deployGatewayFixture)
-      const slots = getSlots()
+      gateway = (await loadFixture(deployGatewayMockFixture)).gateway
+      const queryId = await requestQueryWithChainlinkNode()
 
-      const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
-      const receiverMock = await ReceiverMock.deploy()
-      await receiverMock.deployed()
+      // oracle action
+      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
 
-      const src = SRC_GOERLI
-      const callBack = receiverMock.address
-      const lightClient = chainlinkMock.address
-      const message = MESSAGE
-      const QueryRequests: QueryType.QueryRequestStruct[] = [
-        { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] }
-      ]
-      let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-      const resTx: ContractReceipt = await tx.wait()
-      const events = resTx.events
-
-      if (events !== undefined) {
-        // oracle action
-        const oracleTopics = events[1].topics
-        if (oracleTopics !== undefined) {
-          const requestId = oracleTopics[1]
-          await updateHeaderForNode(oracleMock, requestId)
-        }
-
-        // relayer action
-        const queryArgs = events[0].args
-        if (queryArgs !== undefined) {
-          const queryId = queryArgs.queryId
-
-          const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
-            queryId, proof: SINGLE_VALUE_PROOF
-          }
-          await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
-
-          const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
-            queryId, proof: MULTI_VALUE_PROOF
-          }
-          await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
-
-          const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
-            queryId, proof: MULTI_QUERY_PROOF
-          }
-          await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
-
-        }
+      // relayer action
+      const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
+        queryId, proof: SINGLE_VALUE_PROOF
       }
+      await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+
+      const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
+        queryId, proof: MULTI_VALUE_PROOF
+      }
+      await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+
+      const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
+        queryId, proof: MULTI_QUERY_PROOF
+      }
+      await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
     })
   })
 })

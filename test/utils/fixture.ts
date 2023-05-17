@@ -12,6 +12,16 @@ export async function deployGatewayFixture() {
   return { gateway, owner, otherAccount }
 }
 
+export async function deployGatewayMockFixture() {
+  const [owner, otherAccount] = await ethers.getSigners()
+
+  const Gateway = await ethers.getContractFactory("GatewayMock")
+  const gateway = await Gateway.deploy()
+  await gateway.deployed()
+
+  return { gateway, owner, otherAccount }
+}
+
 export async function deployLightClientMockFixture() {
   // Contracts are deployed using the first signer/account by default
   const [owner, otherAccount] = await ethers.getSigners()

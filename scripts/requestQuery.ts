@@ -1,10 +1,9 @@
 import { ethers, network } from "hardhat";
 import { QueryType } from "../typechain-types/contracts/Gateway";
-import { SRC, TEST_CALLBACK_ADDRESS, TEST_LIGHT_CLIENT_ADDRESS, MESSAGE } from "../test/utils/constants";
-import { getSlots } from "../test/utils/helper";
+import { MESSAGE } from "../test/utils/constants";
 import { BigNumber } from "ethers";
 import { concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
-import { CallWithSyncFeeRequest, GelatoRelay } from "@gelatonetwork/relay-sdk";
+import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import DEPLOYMENTS from "../constants/deployments.json"
 
 const relay = new GelatoRelay();
@@ -42,7 +41,7 @@ async function main() {
     },
     {
       dstChainId: 5, to: src, height:
-        8947377, slot: keccak256(slot2)
+        8975344, slot: keccak256(slot2)
     },
   ]
 

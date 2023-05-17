@@ -47,6 +47,12 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
         bytes32 root
     );
 
+    event NotifyOracle(
+        bytes32 indexed requestId,
+        address indexed oracle,
+        bytes queries
+    );
+
     function requestQuery(QueryType.QueryRequest[] memory queries) external {
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             queries.length
@@ -56,7 +62,9 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
             requests[i] = QueryType.OracleQuery(q.dstChainId, q.height);
         }
 
-        IExternalAdapter(oracle).notifyOracle(requests);
+        bytes32 requestId = IExternalAdapter(oracle).notifyOracle(requests);
+
+        emit NotifyOracle(requestId, oracle, abi.encode(requests));
     }
 
     function verify(
@@ -131,13 +139,14 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
                 approvedStateRoots[response.dstChainId][
                     response.height
                 ] = response.root;
+
+                emit UpdateStateRoot(
+                    response.dstChainId,
+                    response.height,
+                    response.root
+                );
             }
         }
-        emit UpdateStateRoot(
-            responses[0].dstChainId,
-            responses[0].height,
-            responses[0].root
-        );
     }
 
     function estimateFee(
@@ -179,7 +188,7 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
         for (uint i = 0; i < proofs.length; i++) {
             Proof memory proof = proofs[i];
             require(
-                approvedStateRoots[proof.dstChainId][proof.height] ==
+                approvedStateRoots[proof.dstChainId][proof.height] !=
                     bytes32(""),
                 "Futaba: verify - not exsit root"
             );
