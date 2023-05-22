@@ -159,14 +159,12 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
         StorageProof memory storageProof
     ) internal pure returns (bytes32) {
         bytes32 path = keccak256(abi.encodePacked(uint256(storageProof.path)));
-        bytes32 value = bytes32(
-            storageProof
-                .proof
-                .verify(storageProof.root, path)
-                .toRlpItem()
-                .toUint()
-        );
-        return value;
+        bytes memory value = storageProof.proof.verify(storageProof.root, path);
+        if (value.length == 0) {
+            return bytes32(0);
+        } else {
+            return bytes32(value.toRlpItem().toUint());
+        }
     }
 
     function setOracle(address _oracle) public onlyOwner {

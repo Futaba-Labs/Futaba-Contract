@@ -3,7 +3,7 @@ import { ChainlinkMock, OracleMock, LinkTokenMock, Operator } from "../typechain
 import { ethers } from "hardhat"
 import { src } from "../typechain-types/@chainlink/contracts"
 import { QueryType } from "../typechain-types/contracts/Gateway"
-import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, SRC, STORAGE_PROOF, ZERO_ADDRESS } from "./utils/constants"
+import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
 import { getSlots, updateHeaderForNode } from "./utils/helper"
 import { expect } from "chai"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
@@ -177,5 +177,30 @@ describe("ChainlinkMock", async function () {
         '0x000000000000000000000000000000000000000000000000000000001dcd6500'
       ]
     ])
+  })
+
+  it("verify() - zero value", async function () {
+    await updateHeaderForNode(oracleMock)
+    const encodedProof = defaultAbiCoder.encode(
+      [
+        "tuple(bytes32 root, address account, bytes proof)",
+        "tuple(bytes32 root, bytes32 path, bytes proof)[]",
+      ],
+      [ACCOUNT_PROOF, [ZERO_VALUE_STORAGE_PROOF]]
+    );
+
+    const proof = defaultAbiCoder.encode(
+      ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
+      [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
+
+    const tx = await chainlinkMock.verify(proof)
+    await tx.wait()
+
+    // expect(await chainlinkMock.callStatic.verify(proof)).to.deep.equal([
+    //   true,
+    //   [
+    //     '0x000000000000000000000000000000000000000000000000000000001dcd6500'
+    //   ]
+    // ])
   })
 })

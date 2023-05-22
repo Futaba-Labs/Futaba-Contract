@@ -48,6 +48,14 @@ export const STORAGE_PROOF = {
   proof: PROOF["storage_proof"]
 }
 
+export const ZERO_VALUE_STORAGE_PROOF = {
+  root: '0x43e01d12f63631cd15a7ffb24db3e97d162b0e8200dfe1f731f2656ee1551345',
+  path: '0xbd3b9c89b21d583087d047e7c69e4b2f53c140afe0ea26ffa1606052890d3d45',
+  proof: PROOF["zero_storage_proof"]
+}
+
+
+
 export const SINGLE_VALUE_PROOF = PROOF["single_value_proof"]
 
 export const MULTI_VALUE_PROOF = PROOF["multi_value_proof"]
