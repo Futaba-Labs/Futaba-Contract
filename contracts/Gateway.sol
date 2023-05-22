@@ -85,7 +85,7 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
         );
         bytes32 queryId = keccak256(abi.encode(encodedPayload, nonce));
         emit Packet(
-            _msgSender(),
+            tx.origin,
             queryId,
             encodedPayload,
             message,
