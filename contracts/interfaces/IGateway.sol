@@ -40,15 +40,29 @@ interface IGateway {
     ) external payable;
 
     /**
-     * @notice This contract is an endpoint for receiving query
+     * @notice This function is an endpoint for receiving query
      * @param response query response data
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
     ) external payable;
 
+    /**
+     * @notice This function is used to estimate the cost of gas
+     * @param lightClient The light client contract address
+     * @param queries query data
+     */
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256);
+
+    /**
+     * @notice This function is used to reference cached data
+     * @param queries query data
+     */
+
+    function getCache(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (bytes[] memory);
 }

@@ -36,11 +36,20 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
         QueryStatus status;
     }
 
-    mapping(bytes32 => bytes[]) public resultStore;
+    struct QueryData {
+        uint256 height;
+        bytes result;
+    }
+
+    mapping(bytes32 => QueryData[]) public resultStore;
 
     mapping(bytes32 => Query) public queryStore;
 
-    event SaveResult(bytes32 indexed queryId, bytes[] results);
+    event SaveQueryData(
+        bytes32 indexed key,
+        uint256 indexed height,
+        bytes result
+    );
     event ReceiveQuery(
         bytes32 indexed queryId,
         bytes message,
@@ -127,8 +136,18 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
             revert InvalidProof(queryId);
         }
 
-        resultStore[queryId] = results;
-        emit SaveResult(queryId, results);
+        for (uint i = 0; i < results.length; i++) {
+            QueryType.QueryRequest memory q = queries[i];
+            bytes memory result = results[i];
+            bytes32 storeKey = keccak256(
+                abi.encode(q.dstChainId, q.to, q.slot)
+            );
+
+            uint256 length = resultStore[storeKey].length;
+
+            resultStore[storeKey][length] = QueryData(q.height, result);
+            emit SaveQueryData(storeKey, q.height, result);
+        }
 
         IReceiver receiver = IReceiver(callBack);
         receiver.receiveQuery(queryId, results, queries, message);
@@ -148,6 +167,42 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
         ILightClient lc = ILightClient(lightClient);
         uint256 lcFee = lc.estimateFee(queries);
         uint256 relayerFee = _getFee();
+
         return lcFee.add(relayerFee);
+    }
+
+    function getCache(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (bytes[] memory) {
+        bytes[] memory cache = new bytes[](queries.length);
+        for (uint i = 0; i < queries.length; i++) {
+            QueryType.QueryRequest memory q = queries[i];
+            bytes32 storeKey = keccak256(
+                abi.encode(q.dstChainId, q.to, q.slot)
+            );
+            if (q.height == 0) {
+                uint256 highestHeight = 0;
+                bytes memory result;
+                for (uint j = 0; j < resultStore[storeKey].length; j++) {
+                    if (resultStore[storeKey][j].height > highestHeight) {
+                        highestHeight = resultStore[storeKey][j].height;
+                        result = resultStore[storeKey][j].result;
+                    }
+                }
+                cache[i] = result;
+            } else {
+                for (uint j = 0; j < resultStore[storeKey].length; j++) {
+                    if (resultStore[storeKey][j].height == q.height) {
+                        cache[i] = resultStore[storeKey][j].result;
+                        break;
+                    }
+                }
+            }
+        }
+        return cache;
+    }
+
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
     }
 }

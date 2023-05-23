@@ -243,7 +243,7 @@ describe("Gateway", async function () {
           const queryResponse: QueryType.QueryResponseStruct = {
             queryId, proof: PROOF_FOR_FUNCTIONS
           }
-          await expect(gateway.receiveQuery(queryResponse)).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+          await expect(gateway.receiveQuery(queryResponse)).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
 
         }
       }
@@ -300,17 +300,91 @@ describe("Gateway", async function () {
       const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
         queryId, proof: SINGLE_VALUE_PROOF
       }
-      await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+      await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
 
       const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
         queryId, proof: MULTI_VALUE_PROOF
       }
-      await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+      await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
 
       const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
         queryId, proof: MULTI_QUERY_PROOF
       }
-      await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveResult").to.emit(gateway, "ReceiveQuery")
+      await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
+
+      const slots = getSlots()
+      const src = SRC_GOERLI
+
+      const queryRequests: QueryType.QueryRequestStruct[] = [
+        { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
+        { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
+      ]
     })
+  })
+
+  async function storeQueryResult(gateway: GatewayMock, queryLen: number) {
+    const queryId = await requestQueryWithChainlinkNode()
+
+    // oracle action
+    await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
+
+    const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
+      queryId, proof: MULTI_QUERY_PROOF
+    }
+
+    const tx = await gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
+    const resTx: ContractReceipt = await tx.wait()
+
+    const events = resTx.events
+
+    const results = []
+    if (events !== undefined) {
+      for (let i = 0; i < queryLen; i++) {
+        const event = events[i]
+        const args = event.args
+        if (args !== undefined) {
+          results.push(args.result)
+        }
+      }
+    }
+
+    return results
+  }
+
+  it("getCache() - a specific block height", async function () {
+    const slots = getSlots()
+    const src = SRC_GOERLI
+    const queryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
+    ]
+
+    const results = await storeQueryResult(gateway, queryRequests.length)
+
+    expect(await gateway.getCache(queryRequests)).deep.equal(results)
+  })
+  it("getCache() - latest block height", async function () {
+    const slots = getSlots()
+    const src = SRC_GOERLI
+    const queryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[0] },
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[1] }
+    ]
+
+    const results = await storeQueryResult(gateway, queryRequests.length)
+
+    expect(await gateway.getCache(queryRequests)).deep.equal(results)
+  })
+  it("getCache() - zero value", async function () {
+    const slots = getSlots()
+    const src = SRC_GOERLI
+    const queryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[0] },
+      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[1] }
+    ]
+
+    await storeQueryResult(gateway, queryRequests.length)
+
+    expect(await gateway.getCache(queryRequests)).deep.equal(["0x", "0x"])
   })
 })
