@@ -9,7 +9,8 @@ import DEPLOYMENTS from "../constants/deployments.json"
 const relay = new GelatoRelay();
 
 async function main() {
-  const gateway = await ethers.getContractAt("Gateway", "0xFBA1ead0f2A08cEa9dBa82c10EE797836ecf6Ee7")
+  const gatewayAddress = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].gateway
+  const gateway = await ethers.getContractAt("Gateway", gatewayAddress)
 
   const slot = concat([
     // Mappings' keys in Solidity must all be word-aligned (32 bytes)

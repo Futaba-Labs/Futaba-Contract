@@ -143,9 +143,7 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
                 abi.encode(q.dstChainId, q.to, q.slot)
             );
 
-            uint256 length = resultStore[storeKey].length;
-
-            resultStore[storeKey][length] = QueryData(q.height, result);
+            resultStore[storeKey].push(QueryData(q.height, result));
             emit SaveQueryData(storeKey, q.height, result);
         }
 
