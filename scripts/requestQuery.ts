@@ -12,49 +12,44 @@ async function main() {
   const gatewayAddress = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].gateway
   const gateway = await ethers.getContractAt("Gateway", gatewayAddress)
 
-  const slot = concat([
-    // Mappings' keys in Solidity must all be word-aligned (32 bytes)
+  // storage slot of the token balance on the destination chain
+  const slot1 = keccak256(concat([
     hexZeroPad("0x1aaaeb006AC4DE12C4630BB44ED00A764f37bef8", 32),
-
-    // Similarly with the slot-index into the Solidity variable layout
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
-  ]);
+  ]));
 
-  const slot2 = concat([
-    // Mappings' keys in Solidity must all be word-aligned (32 bytes)
+  const slot2 = keccak256(concat([
     hexZeroPad("0x2274d2C66dC7936044f7B46b7401c3F5187B78aa", 32),
-
-    // Similarly with the slot-index into the Solidity variable layout
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
-  ]);
+  ]));
 
-  const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43"
-  const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b"
+  const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43" // USDC on Goerli
+  const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b" // Mock Receiver
   const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS]["light_client"]
   const message = MESSAGE
 
-  console.log(`slot: ${keccak256(slot)}`)
-
-  const QueryRequests: QueryType.QueryRequestStruct[] = [
+  const queries: QueryType.QueryRequestStruct[] = [
     {
       dstChainId: 5, to: src, height:
-        8947355, slot: keccak256(slot)
+        8947355, slot: slot1
     },
     {
       dstChainId: 5, to: src, height:
-        8975344, slot: keccak256(slot2)
+        8975344, slot: slot2
     },
   ]
 
-  let tx
   try {
-    const fee = await relay.getEstimatedFee(80001, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", BigNumber.from("1000000"), true)
+    const dstChainId = 80001 // mumbai
+    const nativeToken = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    const gasLimit = BigNumber.from("1000000")
+    const fee = await relay.getEstimatedFee(dstChainId, nativeToken, gasLimit, true)
     console.log("fee: ", fee.toString())
-    tx = await gateway.query(QueryRequests, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
+    const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
     await tx.wait()
-    console.log(tx)
+    console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
   } catch (error) {
-    console.error(error)
+    console.error(`The transaction is failed: ${JSON.stringify(error)}`)
   }
 
 }

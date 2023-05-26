@@ -5,6 +5,8 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
   .setAction(
     async (taskArgs, hre): Promise<string> => {
       const LigthClient = await hre.ethers.getContractFactory("ChainlinkMock");
+
+      console.log(`Deploying light client...`);
       const client = await LigthClient.deploy();
       await client.deployed();
       console.log(`LigthClient deployed to: `, client.address);

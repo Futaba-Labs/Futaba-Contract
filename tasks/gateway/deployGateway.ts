@@ -6,11 +6,10 @@ task("TASK_DEPLOY_GATEWAY", "Deploy gateway and oracle contract")
     async (taskArgs, hre): Promise<string> => {
       const Gateway = await hre.ethers.getContractFactory("Gateway");
 
+      console.log(`Deploying gateway...`);
       const gateway = await Gateway.deploy();
       await gateway.deployed();
-      console.log(`Gateway deployed to: `, gateway.address);
-      console.log("\n")
-
+      console.log(`Gateway deployed to:`, gateway.address);
       if (taskArgs.verify) {
         await new Promise(f => setTimeout(f, 10000))
 

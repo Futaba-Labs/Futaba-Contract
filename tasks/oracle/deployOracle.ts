@@ -8,6 +8,7 @@ task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
       const Oracle = await hre.ethers.getContractFactory("OracleMock");
       const linkToken = DEPLOYMENTS[hre.network.name as keyof typeof DEPLOYMENTS]["link_token"]
 
+      console.log(`Deploying oracle...`);
       const oracle = await Oracle.deploy(linkToken);
       await oracle.deployed();
       console.log(`Oracle deployed to: `, oracle.address);

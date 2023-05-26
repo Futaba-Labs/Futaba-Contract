@@ -9,6 +9,7 @@ task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
 
       const client = taskArgs.client
       try {
+        console.log(`setting client to ${client}...`)
         let tx = await (await oracle.setClient(client, { gasLimit: 2000000 })).wait()
         console.log(`✅ [${hre.network.name}] setClient(${client})`)
         console.log(` tx: ${tx.transactionHash}`)
@@ -21,7 +22,6 @@ task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
           console.log(`❌ [${hre.network.name}] setClient(${client})`)
         }
       }
-      console.log("\n")
       return null;
     }
   );

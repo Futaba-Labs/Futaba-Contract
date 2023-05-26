@@ -10,6 +10,7 @@ task("TASK_SET_CHAINLINK_ORACLE", "set chainlink oracle contract address")
       const chainlinkNode = taskArgs.operator
 
       try {
+        console.log(`setting oracle to ${chainlinkNode}...`)
         let tx = await (await oracle.setOracle(chainlinkNode, { gasLimit: 2000000 })).wait()
         console.log(`✅ [${hre.network.name}] setOracle(${chainlinkNode}`)
         console.log(` tx: ${tx.transactionHash}`)

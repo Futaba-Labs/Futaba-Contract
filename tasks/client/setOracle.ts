@@ -9,6 +9,7 @@ task("TASK_SET_ORACLE", "set orcale contract address on Light Client contract")
 
       const oracle = taskArgs.oracle
       try {
+        console.log(`setting oracle to ${oracle}...`)
         let tx = await (await client.setOracle(oracle, { gasLimit: 2000000 })).wait()
         console.log(`✅ [${hre.network.name}] setOracle(${oracle})`)
         console.log(` tx: ${tx.transactionHash}`)
@@ -21,8 +22,6 @@ task("TASK_SET_ORACLE", "set orcale contract address on Light Client contract")
           console.log(`❌ [${hre.network.name}] setOracle(${oracle})`)
         }
       }
-      console.log("\n")
-
       return null;
     }
   );
