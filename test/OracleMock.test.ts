@@ -4,8 +4,9 @@ import { ethers } from "hardhat"
 import { defaultAbiCoder } from "@ethersproject/abi"
 import { expect } from "chai"
 import { QueryType } from "../typechain-types/contracts/Gateway"
-import { DSTCHAINID, SRC, HEIGTH } from "./utils/constants"
+import { DSTCHAINID, SRC, HEIGTH, JOB_ID } from "./utils/constants"
 import { getSlots } from "./utils/helper"
+import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 
 let chainlinkMock: ChainlinkMock,
   oracleMock: OracleMock,
@@ -20,23 +21,22 @@ before(async function () {
   await linkMock.deployed()
   linkToken = linkMock
 
+  const Operator = await ethers.getContractFactory("Operator")
+  operator = await Operator.deploy(linkToken.address, owner.address)
+  await operator.deployed()
+
   const OracleMock = await ethers.getContractFactory("OracleTestMock")
-  oracleMock = await OracleMock.deploy(linkToken.address)
+  const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+  oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"));
   await oracleMock.deployed()
 
   const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
   chainlinkMock = await ChainlinkMock.deploy()
   await chainlinkMock.deployed()
 
-  const Operator = await ethers.getContractFactory("Operator")
-  operator = await Operator.deploy(linkToken.address, owner.address)
-  await operator.deployed()
-
   let tx = await chainlinkMock.setOracle(oracleMock.address)
   await tx.wait()
   tx = await oracleMock.setClient(owner.address)
-  await tx.wait()
-  tx = await oracleMock.setOracle(operator.address)
   await tx.wait()
   tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
   await tx.wait()

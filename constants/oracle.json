@@ -1,0 +1,26 @@
+{
+  "mumbai": {
+    "operator": "0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720",
+    "token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
+    "jobId": "af037e503e964dd2a1d3cb0c715f945b",
+    "fee": "0.1"
+  },
+  "goerli": {
+    "operator": "",
+    "token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
+    "jobId": "",
+    "fee": "0.1"
+  },
+  "optimism-goerli": {
+    "operator": "",
+    "token": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
+    "jobId": "",
+    "fee": "0.1"
+  },
+  "arbitrum-goerli": {
+    "operator": "",
+    "token": "0xd14838A68E8AFBAdE5efb411d5871ea0011AFd28",
+    "jobId": "",
+    "fee": "0.1"
+  }
+}
