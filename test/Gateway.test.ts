@@ -207,10 +207,6 @@ describe("Gateway", async function () {
       expect(query.status).to.be.equal(0)
 
       expect(await gateway.nonce()).to.be.equal(nonce.add(1))
-
-      /* TODO
-        * Whether the data is stored in queryStore
-      */
     })
   })
 })
