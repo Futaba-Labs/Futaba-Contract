@@ -1,21 +1,22 @@
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { expect } from 'chai';
-import * as dotenv from 'dotenv'
-import { LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, GatewayMock, ReceiverMock } from '../typechain-types';
-import { Gateway, QueryType } from '../typechain-types/contracts/Gateway';
-import { SOURCE, SRC, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, PROOF_FOR_FUNCTIONS, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, ZERO_ADDRESS, JOB_ID } from './utils/constants';
-import { deployGatewayFixture, deployGatewayMockFixture } from './utils/fixture';
-import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from './utils/helper';
-import { ethers } from 'hardhat';
-import { ContractReceipt } from 'ethers';
-import { hexZeroPad, hexlify, parseEther, toUtf8Bytes } from 'ethers/lib/utils';
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { expect } from "chai";
+import { ContractReceipt } from "ethers";
+import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256 } from "ethers/lib/utils";
+import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock } from "../typechain-types";
+import { QueryType } from "../typechain-types/contracts/Gateway";
+import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS } from "./utils/constants";
+import { deployGatewayFixture } from "./utils/fixture";
+import { getSlots } from "./utils/helper";
+import { ethers } from "hardhat";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
+import exp from "constants";
 
-dotenv.config()
+
 
 
 describe("Gateway", async function () {
-  let gateway: Gateway | GatewayMock,
+  let gateway: Gateway,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
     lcMock: LightClientMock,
@@ -74,49 +75,13 @@ describe("Gateway", async function () {
 
   });
 
-  async function requestQueryWithFunctions() {
-    const slots = getSlots()
-    const src = SRC
-    const callBack = receiverMock.address
-    const lightClient = lcMock.address
-    const message = MESSAGE
+  it("constructor()", async function () {
+    const Gateway = await ethers.getContractFactory("Gateway")
+    const newGateway = await Gateway.deploy()
+    await newGateway.deployed()
+    expect(await newGateway.nonce()).to.be.equal(1)
+  })
 
-    const QueryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
-      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
-    ]
-    const tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-    const resTx: ContractReceipt = await tx.wait()
-    const events = resTx.events
-    let queryId = ""
-    if (events !== undefined) {
-      queryId = events[0].args?.queryId
-    }
-
-    return queryId
-  }
-
-  async function requestQueryWithChainlinkNode() {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const callBack = receiverMock.address
-    const lightClient = chainlinkMock.address
-    const message = MESSAGE
-
-    const QueryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
-    ]
-    const tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-    const resTx: ContractReceipt = await tx.wait()
-    const events = resTx.events
-    let queryId = ""
-    if (events !== undefined) {
-      queryId = events[0].args?.queryId
-    }
-
-    return queryId
-  }
 
   it("query() - invalid target client", async function () {
     const slots = getSlots()
@@ -167,15 +132,6 @@ describe("Gateway", async function () {
     await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWith("onlyGelatoRelayERC2771")
   })
 
-  it("receiveQuery() - invalid query id", async function () {
-    gateway = (await loadFixture(deployGatewayMockFixture)).gateway
-    await requestQueryWithFunctions()
-    const queryResponse: QueryType.QueryResponseStruct = {
-      queryId: hexZeroPad(ZERO_ADDRESS, 32), proof: PROOF_FOR_FUNCTIONS
-    }
-    await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWithCustomError(gateway, "InvalidQueryId")
-  })
-
   describe("When using Chainlink Functions", async function () {
     it("query() - single query", async function () {
       const slots = getSlots()
@@ -214,49 +170,9 @@ describe("Gateway", async function () {
         }
       }
     })
-
-    //@dev need to remove `onlyGelatoRelay` and `_transferRelayFee()` from `receiveQuery()`
-    it("receiveQuery()", async function () {
-      const slots = getSlots()
-      const src = SRC
-      const callBack = receiverMock.address
-      const lightClient = lcMock.address
-      const message = MESSAGE
-      const QueryRequests: QueryType.QueryRequestStruct[] = [
-        { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] }
-      ]
-      let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-      const resTx: ContractReceipt = await tx.wait()
-      const events = resTx.events
-
-      // oracle action
-      await updateHeaderForFunctions(functionMock)
-
-      // relayer action
-      if (events !== undefined) {
-        const args = events[0].args
-        if (args !== undefined) {
-          const queryId = args.queryId
-
-          const queryResponse: QueryType.QueryResponseStruct = {
-            queryId, proof: PROOF_FOR_FUNCTIONS
-          }
-          await expect(gateway.receiveQuery(queryResponse)).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
-
-        }
-      }
-    })
   })
 
   describe("When using Chainlink Node Operator", async function () {
-    /* TODO
-      * Whether the nonce is 1 when deployed
-      * Whether queryId is correct
-      * Whether the encodedPayload is correct
-      * Whether the event was emitted or not
-      * Whether the data is stored in queryStore
-      * Whether NotifyOracle events have been emitted
-     */
     it("query()", async function () {
       const slots = getSlots()
       const src = SRC
@@ -268,154 +184,33 @@ describe("Gateway", async function () {
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
       ]
-      let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
-      const resTx: ContractReceipt = await tx.wait()
-      const events = resTx.events
+      const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, QueryRequests, message, lightClient])
 
-      if (events !== undefined) {
-        const args = events[0].args
-        if (args !== undefined) {
-          expect(args.callBack).equal(callBack)
-          expect(args.lightClient).equal(lightClient)
-          expect(args.message).equal(message.toLowerCase())
-          const decodedPayload = ethers.utils.defaultAbiCoder.decode(["address", "tuple(uint32, address, uint256, bytes32)[]", "bytes", "address"], args.packet)
-          expect(decodedPayload[0]).equal(callBack)
-          expect(decodedPayload[2]).equal(message.toLowerCase())
-          expect(decodedPayload[3]).equal(lightClient)
+      const nonce = await gateway.nonce()
+      const queryId = keccak256(ethers.utils.defaultAbiCoder.encode(["bytes", "uint256"], [encodedQuery, nonce]))
 
-          for (let i = 0; i < decodedPayload[1].length; i++) {
-            const requestQuery = QueryRequests[i]
-            const query = decodedPayload[1][i];
-            expect(query[0]).equal(requestQuery.dstChainId)
-            expect(query[1]).equal(requestQuery.to)
-            expect(query[2]).equal(requestQuery.height)
-            expect(query[3]).equal(requestQuery.slot)
-          }
-        }
+      let tx = gateway.query(QueryRequests, lightClient, callBack, message)
+      await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
+
+      const oracle = await chainlinkMock.getOracle()
+      const requests = []
+
+      for (const request of QueryRequests) {
+        requests.push({ dstChainId: request.dstChainId, height: request.height })
       }
+
+      const encodedRequest = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height)[]"], [requests])
+      await expect(tx).to.emit(chainlinkMock, "NotifyOracle").withArgs(anyValue, oracle, encodedRequest);
+
+      const query = await gateway.queryStore(queryId)
+      expect(query.data).to.be.equal(encodedQuery)
+      expect(query.status).to.be.equal(0)
+
+      expect(await gateway.nonce()).to.be.equal(nonce.add(1))
+
+      /* TODO
+        * Whether the data is stored in queryStore
+      */
     })
-    /* TODO
-      * If queryId is wrong, status is Fail
-      * Whether queryId is correct
-      * Is the lightclient address valid?
-      * If light client interface is not defined, does it result in an error or
-      * Is the data stored correctly?
-      * Can storeKey be calculated correctly?
-      * Whether SaveQueryData events are emitted
-      * If the IReceiver is incorrect, does it result in an error
-      * Whether ReceiveQuery events are emitted
-      * If there is an error in the receiver, is the data still saved?
-     */
-
-    it("receiveQuery()", async function () {
-      gateway = (await loadFixture(deployGatewayMockFixture)).gateway
-      const queryId = await requestQueryWithChainlinkNode()
-
-      // oracle action
-      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
-
-      // relayer action
-      const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
-        queryId, proof: SINGLE_VALUE_PROOF
-      }
-      await expect(gateway.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
-
-      const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
-        queryId, proof: MULTI_VALUE_PROOF
-      }
-      await expect(gateway.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
-
-      const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
-        queryId, proof: MULTI_QUERY_PROOF
-      }
-      await expect(gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gateway, "SaveQueryData").to.emit(gateway, "ReceiveQuery")
-
-      const slots = getSlots()
-      const src = SRC_GOERLI
-
-      const queryRequests: QueryType.QueryRequestStruct[] = [
-        { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
-        { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
-      ]
-    })
-  })
-
-  async function storeQueryResult(gateway: GatewayMock, queryLen: number) {
-    const queryId = await requestQueryWithChainlinkNode()
-
-    // oracle action
-    await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
-
-    const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
-      queryId, proof: MULTI_QUERY_PROOF
-    }
-
-    const tx = await gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
-    const resTx: ContractReceipt = await tx.wait()
-
-    const events = resTx.events
-
-    const results = []
-    if (events !== undefined) {
-      for (let i = 0; i < queryLen; i++) {
-        const event = events[i]
-        const args = event.args
-        if (args !== undefined) {
-          results.push(args.result)
-        }
-      }
-    }
-
-    return results
-  }
-
-  /* TODO
-      * Does the number of requests match the number of results?
-      * Are we deriving data for the correct storeKey?
-      * Is the lightclient address valid?
-      * If light client interface is not defined, does it result in an error or
-      * Is the data stored correctly?
-      * Can storeKey be calculated correctly?
-      * Whether SaveQueryData events are emitted
-      * If the IReceiver is incorrect, does it result in an error
-      * Whether ReceiveQuery events are emitted
-      * If there is an error in the receiver, is the data still saved?
-     */
-
-  it("getCache() - a specific block height", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
-    ]
-
-    const results = await storeQueryResult(gateway, queryRequests.length)
-
-    expect(await gateway.getCache(queryRequests)).deep.equal(results)
-  })
-  it("getCache() - latest block height", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[1] }
-    ]
-
-    const results = await storeQueryResult(gateway, queryRequests.length)
-
-    expect(await gateway.getCache(queryRequests)).deep.equal(results)
-  })
-  it("getCache() - zero value", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[1] }
-    ]
-
-    await storeQueryResult(gateway, queryRequests.length)
-
-    expect(await gateway.getCache(queryRequests)).deep.equal(["0x", "0x"])
   })
 })

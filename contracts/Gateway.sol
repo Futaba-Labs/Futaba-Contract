@@ -35,10 +35,7 @@ contract Gateway is
         Failed
     }
     struct Query {
-        address lightClient;
-        address callBack;
-        bytes message;
-        QueryType.QueryRequest[] queries;
+        bytes data;
         QueryStatus status;
     }
 
@@ -107,13 +104,7 @@ contract Gateway is
             lightClient,
             callBack
         );
-        queryStore[queryId].lightClient = lightClient;
-        queryStore[queryId].callBack = callBack;
-        queryStore[queryId].message = message;
-        for (uint i = 0; i < queries.length; i++) {
-            queryStore[queryId].queries.push(queries[i]);
-        }
-        queryStore[queryId].status = QueryStatus.Pending;
+        queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
         nonce++;
 
         ILightClient lc = ILightClient(lightClient);
@@ -124,10 +115,24 @@ contract Gateway is
         QueryType.QueryResponse memory response
     ) external payable onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
-        address lc = queryStore[queryId].lightClient;
-        address callBack = queryStore[queryId].callBack;
-        bytes memory message = queryStore[queryId].message;
-        QueryType.QueryRequest[] memory queries = queryStore[queryId].queries;
+        Query memory query = queryStore[queryId];
+        require(
+            keccak256(query.data) != keccak256(bytes("")),
+            "Futaba: Invalid query id"
+        );
+        require(
+            query.status == QueryStatus.Pending,
+            "Futaba: Invalid query status"
+        );
+        (
+            address callBack,
+            QueryType.QueryRequest[] memory queries,
+            bytes memory message,
+            address lc
+        ) = abi.decode(
+                query.data,
+                (address, QueryType.QueryRequest[], bytes, address)
+            );
         if (queries.length == 0) {
             queryStore[queryId].status = QueryStatus.Failed;
             revert InvalidQueryId(queryId);
