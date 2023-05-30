@@ -22,9 +22,16 @@ contract OracleTestMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     address public ligthClient;
 
-    constructor(address _tokenAddress) ConfirmedOwner(msg.sender) {
-        jobId = "af037e503e964dd2a1d3cb0c715f945b";
+    constructor(
+        address _tokenAddress,
+        bytes32 _jobid,
+        address _operator,
+        uint256 _fee
+    ) ConfirmedOwner(msg.sender) {
+        jobId = _jobid;
         setChainlinkToken(_tokenAddress);
+        setChainlinkOracle(_operator);
+        fee = _fee;
     }
 
     function notifyOracle(

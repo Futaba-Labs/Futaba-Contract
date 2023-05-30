@@ -1,15 +1,18 @@
 import { task, types } from "hardhat/config";
-import DEPLOYMENTS from "../../constants/deployments.json"
+import ORACLE from "../../constants/oracle.json"
+import { parseEther } from "ethers/lib/utils";
 
 task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
   .addParam<boolean>("verify", "Verify gateway contract", false, types.boolean)
   .setAction(
     async (taskArgs, hre): Promise<string> => {
       const Oracle = await hre.ethers.getContractFactory("OracleMock");
-      const linkToken = DEPLOYMENTS[hre.network.name as keyof typeof DEPLOYMENTS]["link_token"]
+      const oracleConfig = ORACLE[hre.network.name as keyof typeof ORACLE]
 
       console.log(`Deploying oracle...`);
-      const oracle = await Oracle.deploy(linkToken);
+      const jobId = hre.ethers.utils.hexlify(hre.ethers.utils.hexZeroPad(hre.ethers.utils.toUtf8Bytes(oracleConfig.jobId), 32));
+      const linkToken = oracleConfig.token;
+      const oracle = await Oracle.deploy(linkToken, jobId, oracleConfig.operator, parseEther("0"));
       await oracle.deployed();
       console.log(`Oracle deployed to: `, oracle.address);
 

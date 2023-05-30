@@ -3,13 +3,14 @@ import { ChainlinkMock, OracleMock, LinkTokenMock, Operator } from "../typechain
 import { ethers } from "hardhat"
 import { src } from "../typechain-types/@chainlink/contracts"
 import { QueryType } from "../typechain-types/contracts/Gateway"
-import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
+import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
 import { getSlots, updateHeaderForNode } from "./utils/helper"
 import { expect } from "chai"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { defaultAbiCoder } from "@ethersproject/abi"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 import { encode } from "punycode"
+import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 
 describe("ChainlinkMock", async function () {
   let chainlinkMock: ChainlinkMock,
@@ -31,23 +32,22 @@ describe("ChainlinkMock", async function () {
     await linkMock.deployed()
     linkToken = linkMock
 
+    const Operator = await ethers.getContractFactory("Operator")
+    operator = await Operator.deploy(linkToken.address, owner.address)
+    await operator.deployed()
+
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
-    oracleMock = await OracleMock.deploy(linkToken.address)
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"));
     await oracleMock.deployed()
 
     const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
     chainlinkMock = await ChainlinkMock.deploy()
     await chainlinkMock.deployed()
 
-    const Operator = await ethers.getContractFactory("Operator")
-    operator = await Operator.deploy(linkToken.address, owner.address)
-    await operator.deployed()
-
     let tx = await chainlinkMock.setOracle(oracleMock.address)
     await tx.wait()
     tx = await oracleMock.setClient(chainlinkMock.address)
-    await tx.wait()
-    tx = await oracleMock.setOracle(operator.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
