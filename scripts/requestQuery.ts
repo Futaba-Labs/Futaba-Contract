@@ -19,23 +19,24 @@ async function main() {
   ]));
 
   const slot2 = keccak256(concat([
-    hexZeroPad("0x2274d2C66dC7936044f7B46b7401c3F5187B78aa", 32),
+    hexZeroPad("0x1aaaeb006AC4DE12C4630BB44ED00A764f37bef8", 32),
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
   ]));
 
-  const src = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43" // USDC on Goerli
+  const usdcOnGoerli = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43" // USDC on Goerli
+  const linkOnOpGoerli = "0x14cd1A7b8c547bD4A2f531ba1BF11B6c4f2b96db" // LINK on Optimism Goerli
   const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b" // Mock Receiver
   const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS]["light_client"]
   const message = MESSAGE
 
   const queries: QueryType.QueryRequestStruct[] = [
     {
-      dstChainId: 5, to: src, height:
+      dstChainId: 5, to: usdcOnGoerli, height:
         8947355, slot: slot1
     },
     {
-      dstChainId: 5, to: src, height:
-        8975344, slot: slot2
+      dstChainId: 420, to: linkOnOpGoerli, height:
+        9844409, slot: slot2
     },
   ]
 
