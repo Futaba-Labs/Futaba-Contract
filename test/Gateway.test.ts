@@ -160,7 +160,7 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid callback contract")
   })
 
-  it("query() - onlyGelatoRelayERC2771", async function () {
+  it("receiveQuery() - onlyGelatoRelayERC2771", async function () {
     const queryResponse: QueryType.QueryResponseStruct = {
       queryId: hexZeroPad(ZERO_ADDRESS, 32), proof: PROOF_FOR_FUNCTIONS
     }
@@ -249,6 +249,14 @@ describe("Gateway", async function () {
   })
 
   describe("When using Chainlink Node Operator", async function () {
+    /* TODO
+      * Whether the nonce is 1 when deployed
+      * Whether queryId is correct
+      * Whether the encodedPayload is correct
+      * Whether the event was emitted or not
+      * Whether the data is stored in queryStore
+      * Whether NotifyOracle events have been emitted
+     */
     it("query()", async function () {
       const slots = getSlots()
       const src = SRC
@@ -286,6 +294,18 @@ describe("Gateway", async function () {
         }
       }
     })
+    /* TODO
+      * If queryId is wrong, status is Fail
+      * Whether queryId is correct
+      * Is the lightclient address valid?
+      * If light client interface is not defined, does it result in an error or
+      * Is the data stored correctly?
+      * Can storeKey be calculated correctly?
+      * Whether SaveQueryData events are emitted
+      * If the IReceiver is incorrect, does it result in an error
+      * Whether ReceiveQuery events are emitted
+      * If there is an error in the receiver, is the data still saved?
+     */
 
     it("receiveQuery()", async function () {
       gateway = (await loadFixture(deployGatewayMockFixture)).gateway
@@ -348,6 +368,19 @@ describe("Gateway", async function () {
 
     return results
   }
+
+  /* TODO
+      * Does the number of requests match the number of results?
+      * Are we deriving data for the correct storeKey?
+      * Is the lightclient address valid?
+      * If light client interface is not defined, does it result in an error or
+      * Is the data stored correctly?
+      * Can storeKey be calculated correctly?
+      * Whether SaveQueryData events are emitted
+      * If the IReceiver is incorrect, does it result in an error
+      * Whether ReceiveQuery events are emitted
+      * If there is an error in the receiver, is the data still saved?
+     */
 
   it("getCache() - a specific block height", async function () {
     const slots = getSlots()

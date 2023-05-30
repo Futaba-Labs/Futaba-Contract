@@ -164,15 +164,7 @@ contract Gateway is
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        require(
-            lightClient != address(0x0),
-            "Futaba: Invalid light client contract"
-        );
-        ILightClient lc = ILightClient(lightClient);
-        uint256 lcFee = lc.estimateFee(queries);
-        uint256 relayerFee = _getFee();
-
-        return lcFee.add(relayerFee);
+        return 0;
     }
 
     function getCache(

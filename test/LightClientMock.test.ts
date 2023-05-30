@@ -11,6 +11,7 @@ import { ethers } from "hardhat"
 import { ContractReceipt } from "ethers/lib/ethers"
 dotenv.config()
 
+//@dev This function is currently not in use
 describe("LightClientMock", async function () {
   it("setSubscriptionId()", async function () {
     const { lcMock } = await loadFixture(deployLightClientMockFixture)
