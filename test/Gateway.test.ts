@@ -160,11 +160,11 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid callback contract")
   })
 
-  it("query() - onlyGelatoRelay", async function () {
+  it("query() - onlyGelatoRelayERC2771", async function () {
     const queryResponse: QueryType.QueryResponseStruct = {
       queryId: hexZeroPad(ZERO_ADDRESS, 32), proof: PROOF_FOR_FUNCTIONS
     }
-    await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWith("onlyGelatoRelay")
+    await expect(gateway.receiveQuery(queryResponse)).to.be.revertedWith("onlyGelatoRelayERC2771")
   })
 
   it("receiveQuery() - invalid query id", async function () {
@@ -184,7 +184,6 @@ describe("Gateway", async function () {
       const lightClient = lcMock.address
       const message = MESSAGE
 
-      //TODO: need to set up mutiple query
       const QueryRequests: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }

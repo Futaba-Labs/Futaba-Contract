@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {GelatoRelayContext} from "@gelatonetwork/relay-context/contracts/GelatoRelayContext.sol";
+import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
 import "hardhat/console.sol";
 
 /**
@@ -19,8 +19,14 @@ import "hardhat/console.sol";
  * @notice This contract sends and receives queries
  * @notice NOT AUDITED
  */
-contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
+contract Gateway is
+    IGateway,
+    Ownable,
+    ReentrancyGuard,
+    GelatoRelayContextERC2771
+{
     using SafeMath for uint;
+    using Address for address payable;
     uint64 public nonce;
 
     enum QueryStatus {
@@ -116,7 +122,7 @@ contract Gateway is IGateway, Ownable, ReentrancyGuard, GelatoRelayContext {
 
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable onlyGelatoRelay {
+    ) external payable onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
         address lc = queryStore[queryId].lightClient;
         address callBack = queryStore[queryId].callBack;
