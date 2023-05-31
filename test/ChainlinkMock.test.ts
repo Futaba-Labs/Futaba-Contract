@@ -33,14 +33,14 @@ describe("ChainlinkMock", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const OracleMock = await ethers.getContractFactory("OracleTestMock")
-    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"));
-    await oracleMock.deployed()
-
     const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
     chainlinkMock = await ChainlinkMock.deploy()
     await chainlinkMock.deployed()
+
+    const OracleMock = await ethers.getContractFactory("OracleTestMock")
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    await oracleMock.deployed()
 
     let tx = await chainlinkMock.setOracle(oracleMock.address)
     await tx.wait()

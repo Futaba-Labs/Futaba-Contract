@@ -62,6 +62,8 @@ contract Gateway is
         bytes[] results
     );
 
+    event ReceiverError(bytes32 indexed queryId, string reason);
+
     event Withdraw(address indexed to, uint256 indexed amount);
 
     error InvalidQueryId(bytes32 queryId);
@@ -92,8 +94,6 @@ contract Gateway is
         );
 
         require(callBack != address(0x0), "Futaba: Invalid callback contract");
-
-        address(IReceiver(callBack));
 
         bytes memory encodedPayload = abi.encode(
             callBack,
@@ -166,10 +166,15 @@ contract Gateway is
             emit SaveQueryData(storeKey, q.height, result);
         }
 
-        IReceiver receiver = IReceiver(callBack);
-        receiver.receiveQuery(queryId, results, queries, message);
-        queryStore[queryId].status = QueryStatus.Success;
-        emit ReceiveQuery(queryId, message, lc, callBack, results);
+        try
+            IReceiver(callBack).receiveQuery(queryId, results, queries, message)
+        {
+            queryStore[queryId].status = QueryStatus.Success;
+            emit ReceiveQuery(queryId, message, lc, callBack, results);
+        } catch Error(string memory reason) {
+            emit ReceiverError(queryId, reason);
+            queryStore[queryId].status = QueryStatus.Failed;
+        }
         _transferRelayFee();
     }
 

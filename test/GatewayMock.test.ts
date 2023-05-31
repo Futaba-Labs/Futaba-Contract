@@ -3,7 +3,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256 } from "ethers/lib/utils";
-import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock } from "../typechain-types";
+import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
@@ -20,7 +20,7 @@ describe("GatewayMockTest", async function () {
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
     lcMock: LightClientMock,
-    oracleMock: OracleMock,
+    oracleMock: OracleTestMock,
     chainlinkMock: ChainlinkMock,
     operator: Operator,
     owner: SignerWithAddress,
@@ -46,14 +46,14 @@ describe("GatewayMockTest", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const OracleMock = await ethers.getContractFactory("OracleTestMock")
-    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"));
-    await oracleMock.deployed()
-
     const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
     chainlinkMock = await ChainlinkMock.deploy()
     await chainlinkMock.deployed()
+
+    const OracleMock = await ethers.getContractFactory("OracleTestMock")
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    await oracleMock.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
     receiverMock = await ReceiverMock.deploy()
@@ -67,8 +67,6 @@ describe("GatewayMockTest", async function () {
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
     tx = await chainlinkMock.setOracle(oracleMock.address)
-    await tx.wait()
-    tx = await oracleMock.setClient(chainlinkMock.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
