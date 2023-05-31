@@ -2,15 +2,18 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
-import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils";
+import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256 } from "ethers/lib/utils";
 import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
-import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF } from "./utils/constants";
+import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
 import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper";
 import { ethers } from "hardhat";
 
-
+interface QueryParam {
+  queries: QueryType.QueryRequestStruct[]
+  proof: string
+}
 
 describe("GatewayMockTest", async function () {
   let gatewayMock: GatewayMock,
@@ -94,18 +97,16 @@ describe("GatewayMockTest", async function () {
     return queryId
   }
 
-  async function requestQueryWithChainlinkNode() {
+  async function requestQueryWithChainlinkNode(callBack: string = receiverMock.address, lightClient: string = chainlinkMock.address, message: string = MESSAGE, queries: QueryType.QueryRequestStruct[] = []) {
     const slots = getSlots()
     const src = SRC_GOERLI
-    const callBack = receiverMock.address
-    const lightClient = chainlinkMock.address
-    const message = MESSAGE
 
-    const QueryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
-    ]
-    const tx = await gatewayMock.query(QueryRequests, lightClient, callBack, message)
+    if (queries.length === 0) {
+      queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] })
+      queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] })
+    }
+
+    const tx = await gatewayMock.query(queries, lightClient, callBack, message)
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
     let queryId = ""
@@ -113,7 +114,37 @@ describe("GatewayMockTest", async function () {
       queryId = events[0].args?.queryId
     }
 
-    return queryId
+    return { queryId, queries, callBack, lightClient, message }
+  }
+
+  async function storeQueryResult(gateway: GatewayMock, param: QueryParam) {
+    const { queryId } = await requestQueryWithChainlinkNode(undefined, undefined, undefined, param.queries)
+
+    // oracle action
+    await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
+
+
+    const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
+      queryId, proof: param.proof
+    }
+
+    const tx = await gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
+    const resTx: ContractReceipt = await tx.wait()
+
+    const events = resTx.events
+
+    const results = []
+    if (events !== undefined) {
+      for (let i = 0; i < param.queries.length; i++) {
+        const event = events[i]
+        const args = event.args
+        if (args !== undefined) {
+          results.push(args.result)
+        }
+      }
+    }
+
+    return { queryId, results }
   }
 
   it("receiveQuery() - invalid query id", async function () {
@@ -158,126 +189,144 @@ describe("GatewayMockTest", async function () {
   })
 
   describe("When using Chainlink Node Operator", async function () {
-    // If queryId is wrong, status is Fail
-    it("receiveQuery() - invalid query id", async function () { })
-
-    // Is the lightclient address valid?
-    it("receiveQuery() - invalid light client", async function () { })
-
-    // If light client interface is not defined, does it result in an error
-    it("receiveQuery() - invalid light client contract", async function () { })
-
-    // Is the receiver address valid?
-    it("receiveQuery() - invalid receiver", async function () { })
-
-    // If the IReceiver is incorrect, does it result in an error
-    // If there is an error in the receiver, is the data still saved?
-    it("receiveQuery() - invalid receiver contract", async function () { })
-
-    it("receiveQuery()", async function () {
+    it("receiveQuery() - invalid query id", async function () {
       const queryId = await requestQueryWithChainlinkNode()
+      const invalidQueryId = hexZeroPad(ZERO_ADDRESS, 32)
+      expect(queryId).to.not.equal(invalidQueryId)
+
+      const queryResponse: QueryType.QueryResponseStruct = {
+        queryId: invalidQueryId, proof: SINGLE_VALUE_PROOF.proof
+      }
+
+      await expect(gatewayMock.receiveQuery(queryResponse)).to.be.revertedWithCustomError(gatewayMock, "InvalidQueryId").withArgs(invalidQueryId)
+    })
+
+    it("receiveQuery() - invalid status", async function () {
+      const { queryId } = await storeQueryResult(gatewayMock, { queries: SINGLE_VALUE_PROOF.queries, proof: SINGLE_VALUE_PROOF.proof })
+
+      const queryResponse: QueryType.QueryResponseStruct = {
+        queryId, proof: SINGLE_VALUE_PROOF.proof
+      }
+
+      await expect(gatewayMock.receiveQuery(queryResponse)).to.be.revertedWithCustomError(gatewayMock, "InvalidStatus").withArgs(1)
+    })
+
+    it("receiveQuery() - invalid receiver", async function () {
+      const { queryId } = await requestQueryWithChainlinkNode(chainlinkMock.address)
+
+      const queryResponse: QueryType.QueryResponseStruct = {
+        queryId, proof: SINGLE_VALUE_PROOF.proof
+      }
+      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
+
+      await expect(gatewayMock.receiveQuery(queryResponse)).to.be.reverted
+    })
+
+    it("receiveQuery() - errors in receiver", async function () {
+      const ReceiverBadMock = await ethers.getContractFactory("ReceiverBadMock")
+      const receiverBadMock = await ReceiverBadMock.deploy()
+      await receiverBadMock.deployed()
+      const { queryId, queries } = await requestQueryWithChainlinkNode(receiverBadMock.address)
+
+      const queryResponse: QueryType.QueryResponseStruct = {
+        queryId, proof: SINGLE_VALUE_PROOF.proof
+      }
+      const results = SINGLE_VALUE_PROOF.results
+      const storeKey = keccak256(ethers.utils.defaultAbiCoder.encode(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
+
+      await expect(gatewayMock.receiveQuery(queryResponse)).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiverError").withArgs(queryId, "Futaba: ReceiverBadMock")
+
+      const query = await gatewayMock.queryStore(queryId)
+      expect(query.status).to.be.equal(2)
+    })
+
+    it("receiveQuery() - single value", async function () {
+      const { queryId, queries, callBack, lightClient, message } = await requestQueryWithChainlinkNode(undefined, undefined, undefined, SINGLE_VALUE_PROOF.queries)
 
       // oracle action
       await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
 
       // relayer action
       const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
-        queryId, proof: SINGLE_VALUE_PROOF
+        queryId, proof: SINGLE_VALUE_PROOF.proof
       }
-      await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").to.emit(gatewayMock, "ReceiveQuery")
+      const results = SINGLE_VALUE_PROOF.results
+      const storeKey = keccak256(ethers.utils.defaultAbiCoder.encode(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
 
-      const queryResponseForMultiProofs: QueryType.QueryResponseStruct = {
-        queryId, proof: MULTI_VALUE_PROOF
+      await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
+
+      const query = await gatewayMock.queryStore(queryId)
+      expect(query.status).to.be.equal(1)
+    })
+
+    it("receiveQuery() - single value greater than 32 bytes", async function () {
+      const { queryId, queries, callBack, lightClient, message } = await requestQueryWithChainlinkNode(undefined, undefined, undefined, SINGLE_VALUE_PROOF.queries)
+
+      // oracle action
+      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
+
+      // relayer action
+      const queryResponseForSingleProof: QueryType.QueryResponseStruct = {
+        queryId, proof: GREATER_THAN_32BYTES_PROOF.proof
       }
-      await expect(gatewayMock.receiveQuery(queryResponseForMultiProofs, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").to.emit(gatewayMock, "ReceiveQuery")
+      const results = GREATER_THAN_32BYTES_PROOF.results
+      const storeKey = keccak256(ethers.utils.defaultAbiCoder.encode(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+
+      await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
+
+      const query = await gatewayMock.queryStore(queryId)
+      expect(query.status).to.be.equal(1)
+    })
+
+    it("receiveQuery() - multiple values", async function () {
+      const { queryId, queries, callBack, lightClient, message } = await requestQueryWithChainlinkNode(undefined, undefined, undefined, MULTI_VALUE_PROOF.queries)
+
+      // oracle action
+      await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
 
       const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
-        queryId, proof: MULTI_QUERY_PROOF
+        queryId, proof: MULTI_VALUE_PROOF.proof
       }
-      await expect(gatewayMock.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").to.emit(gatewayMock, "ReceiveQuery")
 
-      /* TODO
-        * Whether queryId is correct
-        * Is the data stored correctly?
-        * Can storeKey be calculated correctly?
-        * Whether SaveQueryData events are emitted
-        * Whether ReceiveQuery events are emitted
-     */
+      const results = MULTI_VALUE_PROOF.results
+
+      const tx = gatewayMock.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
+
+      for (let i = 0; i < results.length; i++) {
+        const storeKey = keccak256(ethers.utils.defaultAbiCoder.encode(["uint32", "address", "bytes32"], [queries[i].dstChainId, queries[i].to, queries[i].slot]))
+        await expect(tx).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[i].height, results[i])
+      }
+
+      await expect(tx).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
+
+      const query = await gatewayMock.queryStore(queryId)
+      expect(query.status).to.be.equal(1)
     })
   })
 
-  async function storeQueryResult(gateway: GatewayMock, queryLen: number) {
-    const queryId = await requestQueryWithChainlinkNode()
-
-    // oracle action
-    await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
-
-    const queryResponseForMultiQueryProofs: QueryType.QueryResponseStruct = {
-      queryId, proof: MULTI_QUERY_PROOF
-    }
-
-    const tx = await gateway.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
-    const resTx: ContractReceipt = await tx.wait()
-
-    const events = resTx.events
-
-    const results = []
-    if (events !== undefined) {
-      for (let i = 0; i < queryLen; i++) {
-        const event = events[i]
-        const args = event.args
-        if (args !== undefined) {
-          results.push(args.result)
-        }
-      }
-    }
-
-    return results
-  }
-
   it("getCache() - a specific block height", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
-    ]
+    const queryRequests = MULTI_VALUE_PROOF.queries
 
-    const results = await storeQueryResult(gatewayMock, queryRequests.length)
-
-    /*
-      * Does the number of requests match the number of results?
-      * Are we deriving data for the correct storeKey?
-     */
+    const { results } = await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
   it("getCache() - latest block height", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 0, slot: slots[1] }
-    ]
-
-    const results = await storeQueryResult(gatewayMock, queryRequests.length)
-
-    /*
-      * Does the number of requests match the number of results?
-      * Are we deriving data for the correct storeKey?
-     */
+    const queryRequests = MULTI_VALUE_PROOF.queries
+    for (const queryRequest of queryRequests) {
+      queryRequest.height = 0
+    }
+    const { results } = await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
   it("getCache() - zero value", async function () {
-    const slots = getSlots()
-    const src = SRC_GOERLI
-    const queryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[0] },
-      { dstChainId: DSTCHAINID_GOERLI, to: src, height: 1, slot: slots[1] }
-    ]
-
-    await storeQueryResult(gatewayMock, queryRequests.length)
+    const queryRequests = MULTI_VALUE_PROOF.queries
+    await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
+    for (const queryRequest of queryRequests) {
+      queryRequest.height = 100
+    }
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(["0x", "0x"])
   })

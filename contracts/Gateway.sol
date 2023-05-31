@@ -28,6 +28,7 @@ contract Gateway is
     using SafeMath for uint;
     using Address for address payable;
     uint64 public nonce;
+    uint256 public nativeTokenAmount;
 
     enum QueryStatus {
         Pending,
@@ -61,7 +62,10 @@ contract Gateway is
         bytes[] results
     );
 
+    event Withdraw(address indexed to, uint256 indexed amount);
+
     error InvalidQueryId(bytes32 queryId);
+    error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
 
     constructor() {
@@ -89,6 +93,8 @@ contract Gateway is
 
         require(callBack != address(0x0), "Futaba: Invalid callback contract");
 
+        address(IReceiver(callBack));
+
         bytes memory encodedPayload = abi.encode(
             callBack,
             queries,
@@ -109,19 +115,25 @@ contract Gateway is
 
         ILightClient lc = ILightClient(lightClient);
         lc.requestQuery(queries);
+        nativeTokenAmount = nativeTokenAmount.add(msg.value);
     }
 
     function receiveQuery(
         QueryType.QueryResponse memory response
     ) external payable onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
-        Query memory query = queryStore[queryId];
+        Query memory storedQuery = queryStore[queryId];
+
+        if (keccak256(storedQuery.data) == keccak256(bytes(""))) {
+            revert InvalidQueryId(queryId);
+        }
+
+        if (storedQuery.status != QueryStatus.Pending) {
+            revert InvalidStatus(storedQuery.status);
+        }
+
         require(
-            keccak256(query.data) != keccak256(bytes("")),
-            "Futaba: Invalid query id"
-        );
-        require(
-            query.status == QueryStatus.Pending,
+            storedQuery.status == QueryStatus.Pending,
             "Futaba: Invalid query status"
         );
         (
@@ -130,13 +142,9 @@ contract Gateway is
             bytes memory message,
             address lc
         ) = abi.decode(
-                query.data,
+                storedQuery.data,
                 (address, QueryType.QueryRequest[], bytes, address)
             );
-        if (queries.length == 0) {
-            queryStore[queryId].status = QueryStatus.Failed;
-            revert InvalidQueryId(queryId);
-        }
 
         ILightClient lightClient = ILightClient(lc);
         (bool success, bytes[] memory results) = lightClient.verify(
@@ -204,6 +212,9 @@ contract Gateway is
     }
 
     function withdraw() external onlyOwner {
-        payable(owner()).transfer(address(this).balance);
+        address payable to = payable(msg.sender);
+        to.transfer(nativeTokenAmount);
+        emit Withdraw(to, nativeTokenAmount);
+        nativeTokenAmount = 0;
     }
 }
