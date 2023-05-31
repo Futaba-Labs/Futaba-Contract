@@ -28,6 +28,7 @@ contract Gateway is
     using SafeMath for uint;
     using Address for address payable;
     uint64 public nonce;
+    uint256 public nativeTokenAmount;
 
     enum QueryStatus {
         Pending,
@@ -35,10 +36,7 @@ contract Gateway is
         Failed
     }
     struct Query {
-        address lightClient;
-        address callBack;
-        bytes message;
-        QueryType.QueryRequest[] queries;
+        bytes data;
         QueryStatus status;
     }
 
@@ -64,7 +62,12 @@ contract Gateway is
         bytes[] results
     );
 
+    event ReceiverError(bytes32 indexed queryId, string reason);
+
+    event Withdraw(address indexed to, uint256 indexed amount);
+
     error InvalidQueryId(bytes32 queryId);
+    error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
 
     constructor() {
@@ -107,31 +110,41 @@ contract Gateway is
             lightClient,
             callBack
         );
-        queryStore[queryId].lightClient = lightClient;
-        queryStore[queryId].callBack = callBack;
-        queryStore[queryId].message = message;
-        for (uint i = 0; i < queries.length; i++) {
-            queryStore[queryId].queries.push(queries[i]);
-        }
-        queryStore[queryId].status = QueryStatus.Pending;
+        queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
         nonce++;
 
         ILightClient lc = ILightClient(lightClient);
         lc.requestQuery(queries);
+        nativeTokenAmount = nativeTokenAmount.add(msg.value);
     }
 
     function receiveQuery(
         QueryType.QueryResponse memory response
     ) external payable onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
-        address lc = queryStore[queryId].lightClient;
-        address callBack = queryStore[queryId].callBack;
-        bytes memory message = queryStore[queryId].message;
-        QueryType.QueryRequest[] memory queries = queryStore[queryId].queries;
-        if (queries.length == 0) {
-            queryStore[queryId].status = QueryStatus.Failed;
+        Query memory storedQuery = queryStore[queryId];
+
+        if (keccak256(storedQuery.data) == keccak256(bytes(""))) {
             revert InvalidQueryId(queryId);
         }
+
+        if (storedQuery.status != QueryStatus.Pending) {
+            revert InvalidStatus(storedQuery.status);
+        }
+
+        require(
+            storedQuery.status == QueryStatus.Pending,
+            "Futaba: Invalid query status"
+        );
+        (
+            address callBack,
+            QueryType.QueryRequest[] memory queries,
+            bytes memory message,
+            address lc
+        ) = abi.decode(
+                storedQuery.data,
+                (address, QueryType.QueryRequest[], bytes, address)
+            );
 
         ILightClient lightClient = ILightClient(lc);
         (bool success, bytes[] memory results) = lightClient.verify(
@@ -153,10 +166,15 @@ contract Gateway is
             emit SaveQueryData(storeKey, q.height, result);
         }
 
-        IReceiver receiver = IReceiver(callBack);
-        receiver.receiveQuery(queryId, results, queries, message);
-        queryStore[queryId].status = QueryStatus.Success;
-        emit ReceiveQuery(queryId, message, lc, callBack, results);
+        try
+            IReceiver(callBack).receiveQuery(queryId, results, queries, message)
+        {
+            queryStore[queryId].status = QueryStatus.Success;
+            emit ReceiveQuery(queryId, message, lc, callBack, results);
+        } catch Error(string memory reason) {
+            emit ReceiverError(queryId, reason);
+            queryStore[queryId].status = QueryStatus.Failed;
+        }
         _transferRelayFee();
     }
 
@@ -164,15 +182,7 @@ contract Gateway is
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        require(
-            lightClient != address(0x0),
-            "Futaba: Invalid light client contract"
-        );
-        ILightClient lc = ILightClient(lightClient);
-        uint256 lcFee = lc.estimateFee(queries);
-        uint256 relayerFee = _getFee();
-
-        return lcFee.add(relayerFee);
+        return 0;
     }
 
     function getCache(
@@ -207,6 +217,9 @@ contract Gateway is
     }
 
     function withdraw() external onlyOwner {
-        payable(owner()).transfer(address(this).balance);
+        address payable to = payable(msg.sender);
+        to.transfer(nativeTokenAmount);
+        emit Withdraw(to, nativeTokenAmount);
+        nativeTokenAmount = 0;
     }
 }

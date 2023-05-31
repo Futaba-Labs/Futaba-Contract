@@ -1,7 +1,5 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ChainlinkMock, OracleMock, LinkTokenMock, Operator } from "../typechain-types"
 import { ethers } from "hardhat"
-import { src } from "../typechain-types/@chainlink/contracts"
 import { QueryType } from "../typechain-types/contracts/Gateway"
 import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
 import { getSlots, updateHeaderForNode } from "./utils/helper"
@@ -9,7 +7,6 @@ import { expect } from "chai"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { defaultAbiCoder } from "@ethersproject/abi"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
-import { encode } from "punycode"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 
 describe("ChainlinkMock", async function () {
@@ -36,14 +33,14 @@ describe("ChainlinkMock", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const OracleMock = await ethers.getContractFactory("OracleTestMock")
-    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"));
-    await oracleMock.deployed()
-
     const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
     chainlinkMock = await ChainlinkMock.deploy()
     await chainlinkMock.deployed()
+
+    const OracleMock = await ethers.getContractFactory("OracleTestMock")
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    await oracleMock.deployed()
 
     let tx = await chainlinkMock.setOracle(oracleMock.address)
     await tx.wait()
@@ -80,6 +77,9 @@ describe("ChainlinkMock", async function () {
     await tx.wait()
 
     expect(chainlinkMock.updateHeader(oracleResponses)).to.emit(chainlinkMock, "UpdateHeader").withArgs(oracleResponses[0]).to.emit(chainlinkMock, "UpdateHeader").withArgs(oracleResponses[1])
+    for (const response of oracleResponses) {
+      expect(await chainlinkMock.getApprovedStateRoot(response.dstChainId, response.height)).to.equal(response.root)
+    }
   })
 
   it("verify() - invald account proof", async function () {
@@ -196,11 +196,24 @@ describe("ChainlinkMock", async function () {
     const tx = await chainlinkMock.verify(proof)
     await tx.wait()
 
-    // expect(await chainlinkMock.callStatic.verify(proof)).to.deep.equal([
-    //   true,
-    //   [
-    //     '0x000000000000000000000000000000000000000000000000000000001dcd6500'
-    //   ]
-    // ])
+    expect(await chainlinkMock.callStatic.verify(proof)).to.deep.equal([
+      true,
+      [
+        '0x0000000000000000000000000000000000000000000000000000000000000000'
+      ]
+    ])
+  })
+
+  it("getOracle()", async function () {
+    expect(await chainlinkMock.getOracle()).to.equal(oracleMock.address)
+  })
+  it("estimateFee()", async function () {
+    const slots = getSlots()
+
+    const queries: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
+    ]
+    expect(await chainlinkMock.estimateFee(queries)).to.equal(0)
   })
 })

@@ -20,18 +20,50 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     bytes32 private jobId;
     uint256 private fee;
 
-    address public ligthClient;
+    address public lightClient;
+
+    event SetClient(
+        address indexed client,
+        address indexed oldLightClient,
+        uint256 updatedAt
+    );
+
+    event SetOracle(
+        address indexed oracle,
+        address indexed oldOracle,
+        uint256 updatedAt
+    );
+
+    event SetLinkToken(
+        address indexed tokenAddress,
+        address indexed oldTokenAddress,
+        uint256 updatedAt
+    );
+
+    event SetJobId(
+        bytes32 indexed jobId,
+        bytes32 indexed oldJobId,
+        uint256 updatedAt
+    );
+
+    event SetFee(
+        uint256 indexed fee,
+        uint256 indexed oldFee,
+        uint256 updatedAt
+    );
 
     constructor(
         address _tokenAddress,
         bytes32 _jobid,
         address _operator,
-        uint256 _fee
+        uint256 _fee,
+        address _lightClient
     ) ConfirmedOwner(msg.sender) {
         jobId = _jobid;
         setChainlinkToken(_tokenAddress);
         setChainlinkOracle(_operator);
         fee = _fee;
+        lightClient = _lightClient;
     }
 
     function notifyOracle(
@@ -58,20 +90,25 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
             payload,
             (QueryType.OracleResponse[])
         );
-        require(ligthClient != address(0x0), "Futaba: invalid ligth client");
-        ILightClientMock(ligthClient).updateHeader(responses);
+        require(lightClient != address(0x0), "Futaba: invalid ligth client");
+        ILightClientMock(lightClient).updateHeader(responses);
     }
 
     function setClient(address _client) public onlyOwner {
-        ligthClient = _client;
+        address oldLightClient = lightClient;
+        lightClient = _client;
+        emit SetClient(_client, oldLightClient, block.timestamp);
     }
 
     function getClient() public view returns (address) {
-        return ligthClient;
+        return lightClient;
     }
 
     function setLinkToken(address _tokenAddress) public onlyOwner {
+        address oldTokenAddress = chainlinkTokenAddress();
         setChainlinkToken(_tokenAddress);
+
+        emit SetLinkToken(_tokenAddress, oldTokenAddress, block.timestamp);
     }
 
     function getLinkToken() public view returns (address) {
@@ -79,7 +116,10 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setOracle(address _oracle) public onlyOwner {
+        address oldOracle = chainlinkOracleAddress();
         setChainlinkOracle(_oracle);
+
+        emit SetOracle(_oracle, oldOracle, block.timestamp);
     }
 
     function getOracle() public view returns (address) {
@@ -87,7 +127,10 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setJobId(bytes32 _jobId) public onlyOwner {
+        bytes32 oldJobId = jobId;
         jobId = _jobId;
+
+        emit SetJobId(_jobId, oldJobId, block.timestamp);
     }
 
     function getJobId() public view returns (bytes32) {
@@ -95,7 +138,10 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setFee(uint256 _fee) public onlyOwner {
+        uint256 oldFee = fee;
         fee = _fee;
+
+        emit SetFee(_fee, oldFee, block.timestamp);
     }
 
     function getFee() public view returns (uint256) {
@@ -104,7 +150,7 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     modifier onlyLightClient() {
         require(
-            msg.sender == ligthClient,
+            msg.sender == lightClient,
             "Futaba: only light client can call this function"
         );
         _;

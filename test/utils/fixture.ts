@@ -52,13 +52,3 @@ export async function deployReceiverMockFixture() {
   await receiverMock.deployed()
   return { receiverMock }
 }
-
-async function deployOracleMockFixture() {
-  // Contracts are deployed using the first signer/account by default
-  const [owner, otherAccount] = await ethers.getSigners()
-
-  const OracleMock = await ethers.getContractFactory("OracleMock")
-  const oracleMock = await OracleMock.deploy(SRC)
-
-  return { oracleMock, owner, otherAccount }
-}

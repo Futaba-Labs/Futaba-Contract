@@ -8,6 +8,7 @@ import { BigNumber, ContractReceipt } from "ethers"
 import { deployFunctionMockFixture, deployLightClientMockFixture } from "./utils/fixture"
 import { keccak256 } from "ethers/lib/utils"
 
+//@dev This function is currently not in use
 describe("Chainlink Functions", async function () {
 
   it('executeRequest()', async function () {

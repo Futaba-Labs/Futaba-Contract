@@ -11,16 +11,24 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
 import "hardhat/console.sol";
 
 /**
- * @title Gateway Mock contract
+ * @title Gateway contract
  * @notice This contract sends and receives queries
  * @notice NOT AUDITED
  */
-contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
+contract GatewayMock is
+    IGateway,
+    Ownable,
+    ReentrancyGuard,
+    GelatoRelayContextERC2771
+{
     using SafeMath for uint;
+    using Address for address payable;
     uint64 public nonce;
+    uint256 public nativeTokenAmount;
 
     enum QueryStatus {
         Pending,
@@ -28,10 +36,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         Failed
     }
     struct Query {
-        address lightClient;
-        address callBack;
-        bytes message;
-        QueryType.QueryRequest[] queries;
+        bytes data;
         QueryStatus status;
     }
 
@@ -49,7 +54,6 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         uint256 indexed height,
         bytes result
     );
-
     event ReceiveQuery(
         bytes32 indexed queryId,
         bytes message,
@@ -58,7 +62,12 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         bytes[] results
     );
 
+    event ReceiverError(bytes32 indexed queryId, string reason);
+
+    event Withdraw(address indexed to, uint256 indexed amount);
+
     error InvalidQueryId(bytes32 queryId);
+    error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
 
     constructor() {
@@ -94,39 +103,48 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         );
         bytes32 queryId = keccak256(abi.encode(encodedPayload, nonce));
         emit Packet(
-            _msgSender(),
+            tx.origin,
             queryId,
             encodedPayload,
             message,
             lightClient,
             callBack
         );
-        queryStore[queryId].lightClient = lightClient;
-        queryStore[queryId].callBack = callBack;
-        queryStore[queryId].message = message;
-        for (uint i = 0; i < queries.length; i++) {
-            queryStore[queryId].queries.push(queries[i]);
-        }
-        queryStore[queryId].status = QueryStatus.Pending;
+        queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
         nonce++;
 
         ILightClient lc = ILightClient(lightClient);
         lc.requestQuery(queries);
+        nativeTokenAmount = nativeTokenAmount.add(msg.value);
     }
 
-    //@dev gelato modifiers are removed in this mock
     function receiveQuery(
         QueryType.QueryResponse memory response
     ) external payable {
         bytes32 queryId = response.queryId;
-        address lc = queryStore[queryId].lightClient;
-        address callBack = queryStore[queryId].callBack;
-        bytes memory message = queryStore[queryId].message;
-        QueryType.QueryRequest[] memory queries = queryStore[queryId].queries;
-        if (queries.length == 0) {
-            queryStore[queryId].status = QueryStatus.Failed;
+        Query memory storedQuery = queryStore[queryId];
+
+        if (keccak256(storedQuery.data) == keccak256(bytes(""))) {
             revert InvalidQueryId(queryId);
         }
+
+        if (storedQuery.status != QueryStatus.Pending) {
+            revert InvalidStatus(storedQuery.status);
+        }
+
+        require(
+            storedQuery.status == QueryStatus.Pending,
+            "Futaba: Invalid query status"
+        );
+        (
+            address callBack,
+            QueryType.QueryRequest[] memory queries,
+            bytes memory message,
+            address lc
+        ) = abi.decode(
+                storedQuery.data,
+                (address, QueryType.QueryRequest[], bytes, address)
+            );
 
         ILightClient lightClient = ILightClient(lc);
         (bool success, bytes[] memory results) = lightClient.verify(
@@ -148,23 +166,22 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
             emit SaveQueryData(storeKey, q.height, result);
         }
 
-        IReceiver receiver = IReceiver(callBack);
-        receiver.receiveQuery(queryId, results, queries, message);
-        queryStore[queryId].status = QueryStatus.Success;
-        emit ReceiveQuery(queryId, message, lc, callBack, results);
+        try
+            IReceiver(callBack).receiveQuery(queryId, results, queries, message)
+        {
+            queryStore[queryId].status = QueryStatus.Success;
+            emit ReceiveQuery(queryId, message, lc, callBack, results);
+        } catch Error(string memory reason) {
+            emit ReceiverError(queryId, reason);
+            queryStore[queryId].status = QueryStatus.Failed;
+        }
     }
 
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        require(
-            lightClient != address(0x0),
-            "Futaba: Invalid light client contract"
-        );
-        ILightClient lc = ILightClient(lightClient);
-        uint256 lcFee = lc.estimateFee(queries);
-        return lcFee;
+        return 0;
     }
 
     function getCache(
@@ -196,5 +213,12 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
             }
         }
         return cache;
+    }
+
+    function withdraw() external onlyOwner {
+        address payable to = payable(msg.sender);
+        to.transfer(nativeTokenAmount);
+        emit Withdraw(to, nativeTokenAmount);
+        nativeTokenAmount = 0;
     }
 }
