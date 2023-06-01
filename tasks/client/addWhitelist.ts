@@ -5,12 +5,12 @@ task("TASK_ADD_WHITELIST", "add whitelist")
   .addVariadicPositionalParam("addresses")
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const client = taskArgs.client
+      const chainlinkMock = await hre.ethers.getContractAt("ChainlinkMock", taskArgs.client);
       const addresses = taskArgs.addresses
 
       try {
         console.log(`setting addresses to ${addresses}...`)
-        let tx = await (await client.addToWhitelist(addresses, { gasLimit: 2000000 })).wait()
+        let tx = await (await chainlinkMock.addToWhitelist(addresses, { gasLimit: 2000000 })).wait()
         console.log(`✅ [${hre.network.name}] addToWhitelist(${addresses})`)
         console.log(` tx: ${tx.transactionHash}`)
 

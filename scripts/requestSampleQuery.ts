@@ -36,7 +36,7 @@ async function main() {
     },
     {
       dstChainId: 420, to: linkOnOpGoerli, height:
-        9844409, slot: slot2
+        9844410, slot: slot2
     },
   ]
   console.log("queries: ", JSON.stringify(queries))
