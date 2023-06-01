@@ -70,7 +70,8 @@ describe("GatewayMockTest", async function () {
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
-
+    tx = await chainlinkMock.addToWhitelist([owner.address])
+    await tx.wait()
   });
 
   async function requestQueryWithFunctions() {

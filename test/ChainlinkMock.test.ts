@@ -1,4 +1,4 @@
-import { ChainlinkMock, OracleMock, LinkTokenMock, Operator } from "../typechain-types"
+import { ChainlinkMock, OracleMock, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
 import { ethers } from "hardhat"
 import { QueryType } from "../typechain-types/contracts/Gateway"
 import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
@@ -11,10 +11,11 @@ import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 
 describe("ChainlinkMock", async function () {
   let chainlinkMock: ChainlinkMock,
-    oracleMock: OracleMock,
+    oracleMock: OracleTestMock,
     linkToken: LinkTokenMock,
     operator: Operator,
-    owner: SignerWithAddress
+    owner: SignerWithAddress,
+    otherSingners: SignerWithAddress[]
 
   const oracleResponses = [
     { dstChainId: DSTCHAINID, height: HEIGTH, root: ethers.utils.formatBytes32String("0x1234") },
@@ -23,7 +24,7 @@ describe("ChainlinkMock", async function () {
 
 
   before(async function () {
-    [owner] = await ethers.getSigners()
+    [owner, ...otherSingners] = await ethers.getSigners()
     const LinkTokenMock = await ethers.getContractFactory("LinkTokenMock")
     const linkMock = await LinkTokenMock.deploy()
     await linkMock.deployed()
@@ -50,7 +51,42 @@ describe("ChainlinkMock", async function () {
     await tx.wait()
   })
 
+  async function setWhiteList() {
+    await chainlinkMock.connect(owner).addToWhitelist([owner.address])
+  }
+
+  it("addToWhitelist() - only owner", async function () {
+    await expect(chainlinkMock.connect(otherSingners[0]).addToWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("addToWhitelist()", async function () {
+    const addresses = [...otherSingners.map(signer => signer.address)]
+    await expect(chainlinkMock.connect(owner).addToWhitelist(addresses)).to.emit(chainlinkMock, "AddWhitelist").withArgs(addresses)
+  })
+
+  it("removeFromWhitelist() - only owner", async function () {
+    await expect(chainlinkMock.connect(otherSingners[0]).removeFromWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("removeFromWhitelist()", async function () {
+    const addresses = [...otherSingners.map(signer => signer.address)]
+    await expect(chainlinkMock.connect(owner).removeFromWhitelist(addresses)).to.emit(chainlinkMock, "RemoveWhitelist").withArgs(addresses)
+  })
+  it("requestQuery() - Too many queries", async function () {
+    await setWhiteList()
+    const slots = getSlots()
+
+    const queryRequests: QueryType.QueryRequestStruct[] = []
+    for (let i = 0; i < 11; i++) {
+      queryRequests.push({ dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] })
+    }
+
+    await expect(chainlinkMock.requestQuery(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+  })
+  it("requestQuery() - invalid sender address", async function () { })
+
   it("requestQuery()", async function () {
+    await setWhiteList()
     const slots = getSlots()
 
     const queryRequests: QueryType.QueryRequestStruct[] = [

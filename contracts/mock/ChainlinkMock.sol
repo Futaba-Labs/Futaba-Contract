@@ -18,10 +18,14 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
 
+    uint256 constant MAX_QUERY_COUNT = 10;
+
     mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
 
     mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
+
+    mapping(address => bool) public whitelist;
 
     address public oracle;
 
@@ -53,7 +57,13 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
         bytes queries
     );
 
+    event AddWhitelist(address[] addresses);
+    event RemoveWhitelist(address[] addresses);
+
     function requestQuery(QueryType.QueryRequest[] memory queries) external {
+        require(isWhitelisted(tx.origin), "Futaba: Not whitelisted");
+        require(queries.length <= MAX_QUERY_COUNT, "Futaba: Too many queries");
+
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             queries.length
         );
@@ -153,6 +163,34 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256) {
         return 0;
+    }
+
+    /**
+     * @notice Add to whitelist
+     */
+    function addToWhitelist(address[] calldata addresses) external onlyOwner {
+        for (uint i = 0; i < addresses.length; i++) {
+            whitelist[addresses[i]] = true;
+        }
+
+        emit AddWhitelist(addresses);
+    }
+
+    /**
+     * @notice Remove from whitelist
+     */
+    function removeFromWhitelist(
+        address[] calldata toRemoveAddresses
+    ) external onlyOwner {
+        for (uint i = 0; i < toRemoveAddresses.length; i++) {
+            delete whitelist[toRemoveAddresses[i]];
+        }
+
+        emit RemoveWhitelist(toRemoveAddresses);
+    }
+
+    function isWhitelisted(address addr) public view returns (bool) {
+        return whitelist[addr];
     }
 
     function getStorageValue(
