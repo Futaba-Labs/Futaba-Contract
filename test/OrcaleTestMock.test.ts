@@ -5,7 +5,7 @@ import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, BytesLike } fr
 import { JOB_ID, SAMPLE_RESPONSE_FOR_NODE, ZERO_ADDRESS } from "./utils/constants"
 import { expect } from "chai"
 
-// @dev oracleTestMock is a contract without modifier of fullfill()
+// @dev oracleTestMock is a contract without modifier of fulfill()
 let chainlinkMock: ChainlinkMock,
   oracleTestMock: OracleTestMock,
   linkToken: LinkTokenMock,

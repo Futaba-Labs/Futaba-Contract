@@ -27,7 +27,11 @@ contract Gateway is
 {
     using SafeMath for uint;
     using Address for address payable;
+
+    // nonce for query id
     uint64 public nonce;
+
+    // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
 
     enum QueryStatus {
@@ -45,8 +49,10 @@ contract Gateway is
         bytes result;
     }
 
+    // store key(not query id) => QueryData
     mapping(bytes32 => QueryData[]) public resultStore;
 
+    // query id => Query
     mapping(bytes32 => Query) public queryStore;
 
     event SaveQueryData(
@@ -147,6 +153,8 @@ contract Gateway is
             );
 
         ILightClient lightClient = ILightClient(lc);
+
+        // verify proof and get results
         (bool success, bytes[] memory results) = lightClient.verify(
             response.proof
         );
@@ -155,6 +163,7 @@ contract Gateway is
             revert InvalidProof(queryId);
         }
 
+        // save results
         for (uint i = 0; i < results.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
@@ -166,6 +175,7 @@ contract Gateway is
             emit SaveQueryData(storeKey, q.height, result);
         }
 
+        // call back to receiver contract
         try
             IReceiver(callBack).receiveQuery(queryId, results, queries, message)
         {
@@ -175,9 +185,15 @@ contract Gateway is
             emit ReceiverError(queryId, reason);
             queryStore[queryId].status = QueryStatus.Failed;
         }
+
+        // refund relay fee
+        nativeTokenAmount = nativeTokenAmount.sub(_getFee());
         _transferRelayFee();
     }
 
+    /**
+     * @notice No transaction fees charged at this time
+     */
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
@@ -185,15 +201,24 @@ contract Gateway is
         return 0;
     }
 
+    /**
+     * @notice Accessing past query results
+     * @param queries Query requests
+     * @return bytes[] Query results
+     */
     function getCache(
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         bytes[] memory cache = new bytes[](queries.length);
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
+
+            // Calculate key stored
             bytes32 storeKey = keccak256(
                 abi.encode(q.dstChainId, q.to, q.slot)
             );
+
+            // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
                 uint256 highestHeight = 0;
                 bytes memory result;
@@ -216,6 +241,9 @@ contract Gateway is
         return cache;
     }
 
+    /**
+     * @notice Withdraw native token from the contract
+     */
     function withdraw() external onlyOwner {
         address payable to = payable(msg.sender);
         to.transfer(nativeTokenAmount);

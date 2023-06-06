@@ -44,8 +44,12 @@ async function main() {
     const dstChainId = 80001 // mumbai
     const nativeToken = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
     const gasLimit = BigNumber.from("1000000")
+
+    // calculate fee
     const fee = await relay.getEstimatedFee(dstChainId, nativeToken, gasLimit, true)
     console.log("fee: ", fee.toString())
+
+    // send transaction
     const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
     await tx.wait()
     console.log(`The transaction is successful: ${JSON.stringify(tx)}`)

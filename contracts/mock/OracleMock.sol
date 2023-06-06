@@ -12,14 +12,15 @@ import "hardhat/console.sol";
 /**
  * @title Oracle Mock contract
  * @notice This is Oracle's mock contract when using Chainlink Node Operator
- * @notice Not currently in use
  */
 contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     using Chainlink for Chainlink.Request;
 
+    // Jobid to be executed by Node Operator
     bytes32 private jobId;
+    // Amount of LINK token paid to Node Operator
     uint256 private fee;
-
+    // Chainlink Mock address
     address public lightClient;
 
     event SetClient(
@@ -82,6 +83,11 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         return requestId;
     }
 
+    /**
+     * @notice Callback function executed by the Node Operator to return data
+     * @param _requestId Id of the request
+     * @param payload Data returned by the Node Operator
+     */
     function fulfill(
         bytes32 _requestId,
         bytes memory payload

@@ -12,6 +12,10 @@ interface ERC677 is IERC20 {
     ) external returns (bool success);
 }
 
+/**
+ * @title LinkTokenMock
+ * @notice Mock LINK token
+ */
 contract LinkTokenMock is ERC20, ERC677 {
     constructor() ERC20("Link", "LINK") {}
 

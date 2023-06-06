@@ -24,6 +24,10 @@ interface ILightClient {
         bytes memory message
     ) external returns (bool, bytes[] memory);
 
+    /**
+     * @notice Estimated fees to be collected on the LightClient Contract side
+     * @param queries request query data
+     */
     function estimateFee(
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256);

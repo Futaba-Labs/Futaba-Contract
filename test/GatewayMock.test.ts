@@ -14,7 +14,7 @@ interface QueryParam {
   queries: QueryType.QueryRequestStruct[]
   proof: string
 }
-
+// Test when Gelato process is skipped
 describe("GatewayMockTest", async function () {
   let gatewayMock: GatewayMock,
     linkToken: LinkTokenMock,
@@ -81,11 +81,11 @@ describe("GatewayMockTest", async function () {
     const lightClient = lcMock.address
     const message = MESSAGE
 
-    const QueryRequests: QueryType.QueryRequestStruct[] = [
+    const queries: QueryType.QueryRequestStruct[] = [
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    const tx = await gatewayMock.query(QueryRequests, lightClient, callBack, message)
+    const tx = await gatewayMock.query(queries, lightClient, callBack, message)
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
     let queryId = ""
@@ -96,6 +96,7 @@ describe("GatewayMockTest", async function () {
     return queryId
   }
 
+  // Process of pre-executing a request for a query
   async function requestQueryWithChainlinkNode(callBack: string = receiverMock.address, lightClient: string = chainlinkMock.address, message: string = MESSAGE, queries: QueryType.QueryRequestStruct[] = []) {
     const slots = getSlots()
     const src = SRC_GOERLI
@@ -161,10 +162,10 @@ describe("GatewayMockTest", async function () {
       const callBack = receiverMock.address
       const lightClient = lcMock.address
       const message = MESSAGE
-      const QueryRequests: QueryType.QueryRequestStruct[] = [
+      const queries: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] }
       ]
-      let tx = await gatewayMock.query(QueryRequests, lightClient, callBack, message)
+      let tx = await gatewayMock.query(queries, lightClient, callBack, message)
       const resTx: ContractReceipt = await tx.wait()
       const events = resTx.events
 

@@ -6,6 +6,11 @@ pragma solidity ^0.8.9;
  * @notice This interface is used to interact with the oracle
  */
 interface IOracle {
+    enum Location {
+        Inline,
+        Remote
+    }
+
     /**
      * @notice Send a simple request
      *
@@ -17,11 +22,6 @@ interface IOracle {
      * @param gasLimit Maximum amount of gas used to call the client contract's `handleOracleFulfillment` function
      * @return Functions request ID
      */
-
-    enum Location {
-        Inline,
-        Remote
-    }
 
     function executeRequest(
         string calldata source,

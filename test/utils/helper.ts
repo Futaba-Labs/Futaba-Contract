@@ -7,6 +7,7 @@ import { Proof } from 'eth-object'
 import { FunctionsMock, LightClientMock, OracleMock, OracleTestMock } from "../../typechain-types";
 import { SAMPLE_RESPONSE, SAMPLE_RESPONSE_FOR_NODE, SOURCE, ZERO_ADDRESS } from "./constants";
 
+// Calculate slots for testing
 export const getSlots = () => {
   const newKeyPreimage1 = concat([
     // Mappings' keys in Solidity must all be word-aligned (32 bytes)
@@ -118,6 +119,7 @@ export const updateHeaderForFunctions = async (functionMock: FunctionsMock) => {
   await tx.wait()
 }
 
+// Update header using chainlink node operator
 export async function updateHeaderForNode(oracleMock: OracleTestMock, requestId: string = hexZeroPad(ZERO_ADDRESS, 32)) {
   const tx = await oracleMock.fulfill(hexZeroPad(requestId, 32), SAMPLE_RESPONSE_FOR_NODE);
   const res = await tx.wait();

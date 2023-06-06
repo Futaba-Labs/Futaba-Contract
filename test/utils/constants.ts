@@ -1,4 +1,3 @@
-import { callbackify } from "util"
 import fs from "fs";
 import { QueryType } from "../../typechain-types/contracts/Gateway";
 import { BigNumber } from "ethers";
@@ -56,12 +55,16 @@ export const ZERO_VALUE_STORAGE_PROOF = {
   proof: PROOF["zero_storage_proof"]
 }
 
+// [{ dstChainId: 5, height: 8669610, slot: '0x0000000000000000000000000000000000000000000000000000000000000000'}]
+// proof for a single data case
 export const SINGLE_VALUE_PROOF = {
   queries: [{ dstChainId: DSTCHAINID_GOERLI, to: SRC, height: HEIGTH_GOERLI, slot: '0x0000000000000000000000000000000000000000000000000000000000000000' }],
   proof: PROOF["single_value_proof"],
   results: ["0x000000000000000000001aaaeb006ac4de12c4630bb44ed00a764f37bef80003"]
 }
 
+// [{ dstChainId: 5, height: 8669610, slot: '0x2cc437d98674a0b2b3c157dd747ad36fd3a3d188fad2a434e1300ef7ebabd265' }, { dstChainId: 5, height: 8669610, slot: '0x69aeb288645ac3672c64455e7fedb7ec256bf654e79ea5e5e5f2dcefdba95dcd'}]
+// proof for a multi data case
 export const MULTI_VALUE_PROOF = {
   queries: [{ dstChainId: DSTCHAINID_GOERLI, to: "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43", height: HEIGTH_GOERLI, slot: '0x2cc437d98674a0b2b3c157dd747ad36fd3a3d188fad2a434e1300ef7ebabd265' }, { dstChainId: DSTCHAINID_GOERLI, to: "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43", height: HEIGTH_GOERLI, slot: '0x69aeb288645ac3672c64455e7fedb7ec256bf654e79ea5e5e5f2dcefdba95dcd' }],
   proof: PROOF["multi_value_proof"],
@@ -69,6 +72,8 @@ export const MULTI_VALUE_PROOF = {
     "0x0000000000000000000000000000000000000000000000000000000ab1b0635a"]
 }
 
+// [{ dstChainId: 5, height: 8669610, slot: '0x00f231c931d6d450c35afbf3929cc94acadb4734d3d477381ce491665820a759'}]
+// proof for a greater than 32 bytes data case
 export const GREATER_THAN_32BYTES_PROOF = {
   queries: [{ dstChainId: DSTCHAINID_GOERLI, to: SRC, height: HEIGTH_GOERLI, slot: '0x00f231c931d6d450c35afbf3929cc94acadb4734d3d477381ce491665820a759' }],
   proof: PROOF["greater_than_32bytes_proof"],

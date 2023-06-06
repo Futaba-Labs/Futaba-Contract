@@ -11,8 +11,7 @@ import "hardhat/console.sol";
 
 /**
  * @title Oracle Mock contract
- * @notice This is Oracle's mock contract when using Chainlink Node Operator
- * @notice Not currently in use
+ * @notice Contracts used when testing Oracle Mock (skipping processing of modifiers when executing `fullfill()`)
  */
 contract OracleTestMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     using Chainlink for Chainlink.Request;

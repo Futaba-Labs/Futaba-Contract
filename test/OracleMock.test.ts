@@ -6,7 +6,7 @@ import { JOB_ID, SAMPLE_RESPONSE_FOR_NODE, SINGLE_VALUE_PROOF } from "./utils/co
 import { expect } from "chai"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 
-// @dev oracleTestMock is a contract without modifier of fullfill()
+// @dev oracleTestMock is a contract without modifier of fulfill()
 let chainlinkMock: ChainlinkMock,
   oracleMock: OracleMock,
   linkToken: LinkTokenMock,

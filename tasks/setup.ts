@@ -20,6 +20,7 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
 
       const isGatewayDepolyed = taskArgs.gateway, isOracleDepolyed = taskArgs.oracle, isClientDepolyed = taskArgs.client;
 
+      // Read deployments.json
       const data = await fs.promises.readFile(FILE_PATH, 'utf8');
       deployments = JSON.parse(data.toString());
 
@@ -55,6 +56,7 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
       deployments[hre.network.name].light_client = client;
       deployments[hre.network.name].oracle = oracle;
 
+      // Write deployments.json
       fs.writeFileSync(FILE_PATH, JSON.stringify(deployments))
 
       console.log("Contract setup is complete.");

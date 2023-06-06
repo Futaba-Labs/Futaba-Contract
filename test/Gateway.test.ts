@@ -186,22 +186,24 @@ describe("Gateway", async function () {
       const lightClient = chainlinkMock.address
       const message = MESSAGE
 
-      const QueryRequests: QueryType.QueryRequestStruct[] = [
+      const queries: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
       ]
-      const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, QueryRequests, message, lightClient])
+      const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, queries, message, lightClient])
 
+      // calculate queryId
       const nonce = await gateway.nonce()
       const queryId = keccak256(ethers.utils.defaultAbiCoder.encode(["bytes", "uint256"], [encodedQuery, nonce]))
 
-      let tx = gateway.query(QueryRequests, lightClient, callBack, message)
+      let tx = gateway.query(queries, lightClient, callBack, message)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
 
       const oracle = await chainlinkMock.getOracle()
       const requests = []
 
-      for (const request of QueryRequests) {
+      // Formatted to check Oracle events
+      for (const request of queries) {
         requests.push({ dstChainId: request.dstChainId, height: request.height })
       }
 
@@ -216,6 +218,7 @@ describe("Gateway", async function () {
     })
   })
 
+  // Process of pre-executing a request for a query
   async function requestQueryWithChainlinkNode() {
     const slots = getSlots()
     const src = SRC_GOERLI

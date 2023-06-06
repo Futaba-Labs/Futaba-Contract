@@ -15,8 +15,8 @@ import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/
 import "hardhat/console.sol";
 
 /**
- * @title Gateway contract
- * @notice This contract sends and receives queries
+ * @title Gateway Mock contract
+ * @notice Contracts used when testing Gateway contracts (skipping Gelato processing)
  * @notice NOT AUDITED
  */
 contract GatewayMock is
