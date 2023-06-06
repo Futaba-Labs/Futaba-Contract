@@ -1,10 +1,12 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-gas-reporter"
 import 'solidity-coverage'
-import * as dotenv from 'dotenv';
 import "./tasks/index";
 
-dotenv.config();
 const accounts =
   process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [];
 
@@ -15,12 +17,24 @@ const config: HardhatUserConfig = {
   {
     compilers: [
       {
-        version: "0.8.17"
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          }
+        },
       },
       {
-        version: "0.7.6"
+        version: "0.7.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 1000,
+          }
+        },
       }
-    ]
+    ],
   },
   etherscan: {
     apiKey: {
@@ -59,6 +73,14 @@ const config: HardhatUserConfig = {
       url: `https://sepolia.infura.io/v3/${apiKey}`,
       accounts
     }
+  },
+  gasReporter: {
+    // outputFile: "gas-report.txt",
+    enabled: (process.env.REPORT_GAS) ? true : false,
+    token: "MATIC",
+    showMethodSig: true,
+    currency: 'USD',
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY || "",
   },
 };
 

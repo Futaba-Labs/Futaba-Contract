@@ -44,7 +44,7 @@
     "ethers": "^5.4.7",
     "fs": "^0.0.1-security",
     "hardhat": "^2.12.3",
-    "hardhat-gas-reporter": "^1.0.8",
+    "hardhat-gas-reporter": "^1.0.9",
     "prettier": "^2.8.1",
     "solidity-coverage": "^0.8.2",
     "ts-node": ">=8.0.0",
