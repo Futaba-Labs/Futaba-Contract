@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
-
 import "./interfaces/IGateway.sol";
 import "./interfaces/ILightClient.sol";
 import "./interfaces/IReceiver.sol";
@@ -19,12 +18,15 @@ import "hardhat/console.sol";
  * @notice This contract sends and receives queries
  * @notice NOT AUDITED
  */
+
+// #TODO: Add @notice & @param description for each: FUNCTION + EVENT + ERROR declaration
 contract Gateway is
     IGateway,
     Ownable,
     ReentrancyGuard,
     GelatoRelayContextERC2771
 {
+    //#TODO: Remove SafeMath. Not necessary.
     using SafeMath for uint;
     using Address for address payable;
 
@@ -34,6 +36,7 @@ contract Gateway is
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
 
+    // #TODO enum status
     enum QueryStatus {
         Pending,
         Success,
@@ -67,7 +70,7 @@ contract Gateway is
         address callBack,
         bytes[] results
     );
-
+    //#TODO: Could convert string to bytes for gas saving
     event ReceiverError(bytes32 indexed queryId, string reason);
 
     event Withdraw(address indexed to, uint256 indexed amount);
@@ -89,17 +92,17 @@ contract Gateway is
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             require(
-                q.to != address(0x0),
+                q.to != address(0x0), //#TODO: Use readable standard address(0)
                 "Futaba: Invalid target contract zero address"
             );
         }
 
         require(
-            lightClient != address(0x0),
+            lightClient != address(0x0), //#TODO: Use readable standard address(0)
             "Futaba: Invalid light client contract"
         );
 
-        require(callBack != address(0x0), "Futaba: Invalid callback contract");
+        require(callBack != address(0x0), "Futaba: Invalid callback contract"); //#TODO: Use readable standard address(0)
 
         bytes memory encodedPayload = abi.encode(
             callBack,
@@ -121,12 +124,14 @@ contract Gateway is
 
         ILightClient lc = ILightClient(lightClient);
         lc.requestQuery(queries);
-        nativeTokenAmount = nativeTokenAmount.add(msg.value);
+        nativeTokenAmount = nativeTokenAmount.add(msg.value); //#TODO: Do state change before external call
     }
 
-    function receiveQuery(
-        QueryType.QueryResponse memory response
-    ) external payable onlyGelatoRelayERC2771 {
+    function receiveQuery(QueryType.QueryResponse memory response)
+        external
+        payable
+        onlyGelatoRelayERC2771
+    {
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -138,6 +143,7 @@ contract Gateway is
             revert InvalidStatus(storedQuery.status);
         }
 
+        //#TODO: Seems Redundant. why check both for same stage query?
         require(
             storedQuery.status == QueryStatus.Pending,
             "Futaba: Invalid query status"
@@ -188,9 +194,12 @@ contract Gateway is
 
         // refund relay fee
         nativeTokenAmount = nativeTokenAmount.sub(_getFee());
+
+        //#TODO: Where is this defined?
         _transferRelayFee();
     }
 
+    //#TODO: All public functions should come after external functions. Shift this and others in the code.
     /**
      * @notice No transaction fees charged at this time
      */
@@ -203,25 +212,32 @@ contract Gateway is
 
     /**
      * @notice Accessing past query results
-     * @param queries Query requests
+     * @param queries Query request
      * @return bytes[] Query results
      */
-    function getCache(
-        QueryType.QueryRequest[] memory queries
-    ) external view returns (bytes[] memory) {
+    function getCache(QueryType.QueryRequest[] memory queries)
+        external
+        view
+        returns (bytes[] memory)
+    {
+        //#TODO: Gas Optimization, cache the queries.length in a local variable and use that throughout the function.
+        //#TODO: Do not reinitialize i=0, uint i means it is initialized to zero
+        //#TODO:Put all for-loops under unchecked, there's no reason to check overflow here.
         bytes[] memory cache = new bytes[](queries.length);
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
 
             // Calculate key stored
             bytes32 storeKey = keccak256(
-                abi.encode(q.dstChainId, q.to, q.slot)
+                abi.encode(q.dstChainId, q.to, q.slot) //#TODO: Why not use encodepacked ?
             );
 
             // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
                 uint256 highestHeight = 0;
                 bytes memory result;
+                // #TODO: Gas optimization cache the resultStore[storeKey].length
+                //#TODO: Do not reinitialize j=0, uint j means it is initialized to zero
                 for (uint j = 0; j < resultStore[storeKey].length; j++) {
                     if (resultStore[storeKey][j].height > highestHeight) {
                         highestHeight = resultStore[storeKey][j].height;
@@ -230,6 +246,8 @@ contract Gateway is
                 }
                 cache[i] = result;
             } else {
+                // #TODO: Gas optimization cache the resultStore[storeKey].length
+                //#TODO: Do not reinitialize j=0, uint j means it is initialized to zero
                 for (uint j = 0; j < resultStore[storeKey].length; j++) {
                     if (resultStore[storeKey][j].height == q.height) {
                         cache[i] = resultStore[storeKey][j].result;
@@ -238,6 +256,8 @@ contract Gateway is
                 }
             }
         }
+
+        //#TODO: For large cache list might run out of gas, consider limiting the length of this.
         return cache;
     }
 
@@ -246,8 +266,8 @@ contract Gateway is
      */
     function withdraw() external onlyOwner {
         address payable to = payable(msg.sender);
-        to.transfer(nativeTokenAmount);
-        emit Withdraw(to, nativeTokenAmount);
+        to.transfer(nativeTokenAmount); //#TODO: Never use transfer. use "call".
+        emit Withdraw(to, nativeTokenAmount); //#TODO:First do state changes of making nativeTokenAmount to zero than emit event.
         nativeTokenAmount = 0;
     }
 }
