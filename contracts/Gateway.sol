@@ -6,8 +6,6 @@ import "./interfaces/IReceiver.sol";
 import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
@@ -26,8 +24,6 @@ contract Gateway is
     ReentrancyGuard,
     GelatoRelayContextERC2771
 {
-    //#TODO: Remove SafeMath. Not necessary.
-    using SafeMath for uint;
     using Address for address payable;
 
     // nonce for query id
@@ -36,14 +32,13 @@ contract Gateway is
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
 
-    // #TODO enum status
     enum QueryStatus {
-        Pending,
-        Success,
-        Failed
+        Pending, // Waiting for query results
+        Success, // Query succeeded
+        Failed // Query failed
     }
     struct Query {
-        bytes data;
+        bytes data; // `encode(callBack, queries, message, lightClient)`
         QueryStatus status;
     }
 
@@ -58,11 +53,44 @@ contract Gateway is
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
 
+    /**
+     * @notice This event is emitted when a query is sent
+     * @param sender The sender of the query
+     * @param queryId Unique id to access query state
+     * @param packet The encoded payload
+     * @param message Data to be returned, in addition to the query
+     * @param lightClient The light client contract address
+     * @param callBack The callback contract address
+     */
+    event Packet(
+        address indexed sender,
+        bytes32 indexed queryId,
+        bytes packet,
+        bytes message,
+        address lightClient,
+        address callBack
+    );
+
+    /**
+     * @notice This event is emitted when a query data is stored
+     * @param key The key of the query data
+     * @param height The block height of the query data
+     * @param result The result of the query data
+     */
     event SaveQueryData(
         bytes32 indexed key,
         uint256 indexed height,
         bytes result
     );
+
+    /**
+     * @notice This event is emitted when a query is received
+     * @param queryId Unique id to access query state
+     * @param message Data to be returned, in addition to the query
+     * @param lightClient The light client contract address
+     * @param callBack The callback contract address
+     * @param results The results of the query
+     */
     event ReceiveQuery(
         bytes32 indexed queryId,
         bytes message,
@@ -70,19 +98,50 @@ contract Gateway is
         address callBack,
         bytes[] results
     );
-    //#TODO: Could convert string to bytes for gas saving
-    event ReceiverError(bytes32 indexed queryId, string reason);
 
-    event Withdraw(address indexed to, uint256 indexed amount);
+    /**
+     * @notice This event is emitted when an error occurs in receiver
+     * @param queryId Unique id to access query state
+     * @param reason The reason for the error
+     */
+    event ReceiverError(bytes32 indexed queryId, bytes reason);
 
+    /**
+     * @notice This event is emitted when a query is executed
+     * @param to Unique id to access query state
+     * @param amount The amount of native tokens
+     */
+    event Withdraw(address indexed to, uint256 amount);
+
+    /**
+     * @notice Error if query id does not exist
+     * @param queryId Unique id to access query state
+     */
     error InvalidQueryId(bytes32 queryId);
+
+    /**
+     * @notice Error if query status is invalid
+     * @param status The status of the query
+     */
     error InvalidStatus(QueryStatus status);
+
+    /**
+     * @notice Error if query proof is invalid
+     * @param queryId Unique id to access query state
+     */
     error InvalidProof(bytes32 queryId);
 
     constructor() {
         nonce = 1;
     }
 
+    /**
+     * @notice This contract is an endpoint for executing query
+     * @param queries query data
+     * @param lightClient The light client contract address
+     * @param callBack The callback contract address
+     * @param message Data used when executing callback
+     */
     function query(
         QueryType.QueryRequest[] memory queries,
         address lightClient,
@@ -92,17 +151,20 @@ contract Gateway is
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             require(
-                q.to != address(0x0), //#TODO: Use readable standard address(0)
+                q.to != address(0),
                 "Futaba: Invalid target contract zero address"
             );
         }
 
         require(
-            lightClient != address(0x0), //#TODO: Use readable standard address(0)
+            lightClient != address(0),
             "Futaba: Invalid light client contract"
         );
 
-        require(callBack != address(0x0), "Futaba: Invalid callback contract"); //#TODO: Use readable standard address(0)
+        require(callBack != address(0), "Futaba: Invalid callback contract");
+
+        ILightClient lc = ILightClient(lightClient);
+        lc.requestQuery(queries);
 
         bytes memory encodedPayload = abi.encode(
             callBack,
@@ -110,7 +172,13 @@ contract Gateway is
             message,
             lightClient
         );
-        bytes32 queryId = keccak256(abi.encode(encodedPayload, nonce));
+        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, nonce));
+
+        queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
+        nonce++;
+
+        nativeTokenAmount = nativeTokenAmount + msg.value;
+
         emit Packet(
             tx.origin,
             queryId,
@@ -119,19 +187,15 @@ contract Gateway is
             lightClient,
             callBack
         );
-        queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
-        nonce++;
-
-        ILightClient lc = ILightClient(lightClient);
-        lc.requestQuery(queries);
-        nativeTokenAmount = nativeTokenAmount.add(msg.value); //#TODO: Do state change before external call
     }
 
-    function receiveQuery(QueryType.QueryResponse memory response)
-        external
-        payable
-        onlyGelatoRelayERC2771
-    {
+    /**
+     * @notice This function is an endpoint for receiving query
+     * @param response query response data
+     */
+    function receiveQuery(
+        QueryType.QueryResponse memory response
+    ) external payable onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -143,11 +207,6 @@ contract Gateway is
             revert InvalidStatus(storedQuery.status);
         }
 
-        //#TODO: Seems Redundant. why check both for same stage query?
-        require(
-            storedQuery.status == QueryStatus.Pending,
-            "Futaba: Invalid query status"
-        );
         (
             address callBack,
             QueryType.QueryRequest[] memory queries,
@@ -188,25 +247,25 @@ contract Gateway is
             queryStore[queryId].status = QueryStatus.Success;
             emit ReceiveQuery(queryId, message, lc, callBack, results);
         } catch Error(string memory reason) {
-            emit ReceiverError(queryId, reason);
+            emit ReceiverError(queryId, bytes(reason));
             queryStore[queryId].status = QueryStatus.Failed;
         }
 
         // refund relay fee
-        nativeTokenAmount = nativeTokenAmount.sub(_getFee());
+        nativeTokenAmount = nativeTokenAmount - _getFee();
 
-        //#TODO: Where is this defined?
         _transferRelayFee();
     }
 
-    //#TODO: All public functions should come after external functions. Shift this and others in the code.
     /**
-     * @notice No transaction fees charged at this time
+     * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
+     * @param lightClient The light client contract address
+     * @param queries query data
      */
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
-    ) public view returns (uint256) {
+    ) external view returns (uint256) {
         return 0;
     }
 
@@ -215,30 +274,27 @@ contract Gateway is
      * @param queries Query request
      * @return bytes[] Query results
      */
-    function getCache(QueryType.QueryRequest[] memory queries)
-        external
-        view
-        returns (bytes[] memory)
-    {
-        //#TODO: Gas Optimization, cache the queries.length in a local variable and use that throughout the function.
-        //#TODO: Do not reinitialize i=0, uint i means it is initialized to zero
-        //#TODO:Put all for-loops under unchecked, there's no reason to check overflow here.
-        bytes[] memory cache = new bytes[](queries.length);
-        for (uint i = 0; i < queries.length; i++) {
+    function getCache(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (bytes[] memory) {
+        uint256 querySize = queries.length;
+        require(querySize <= 100, "Futaba: Too many queries");
+        bytes[] memory cache = new bytes[](querySize);
+        for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
 
             // Calculate key stored
             bytes32 storeKey = keccak256(
-                abi.encode(q.dstChainId, q.to, q.slot) //#TODO: Why not use encodepacked ?
+                abi.encodePacked(q.dstChainId, q.to, q.slot)
             );
+
+            uint256 resultStoreSize = resultStore[storeKey].length;
 
             // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
                 uint256 highestHeight = 0;
                 bytes memory result;
-                // #TODO: Gas optimization cache the resultStore[storeKey].length
-                //#TODO: Do not reinitialize j=0, uint j means it is initialized to zero
-                for (uint j = 0; j < resultStore[storeKey].length; j++) {
+                for (uint j; j < resultStoreSize; j++) {
                     if (resultStore[storeKey][j].height > highestHeight) {
                         highestHeight = resultStore[storeKey][j].height;
                         result = resultStore[storeKey][j].result;
@@ -246,9 +302,7 @@ contract Gateway is
                 }
                 cache[i] = result;
             } else {
-                // #TODO: Gas optimization cache the resultStore[storeKey].length
-                //#TODO: Do not reinitialize j=0, uint j means it is initialized to zero
-                for (uint j = 0; j < resultStore[storeKey].length; j++) {
+                for (uint j; j < resultStoreSize; j++) {
                     if (resultStore[storeKey][j].height == q.height) {
                         cache[i] = resultStore[storeKey][j].result;
                         break;
@@ -257,7 +311,6 @@ contract Gateway is
             }
         }
 
-        //#TODO: For large cache list might run out of gas, consider limiting the length of this.
         return cache;
     }
 
@@ -266,8 +319,10 @@ contract Gateway is
      */
     function withdraw() external onlyOwner {
         address payable to = payable(msg.sender);
-        to.transfer(nativeTokenAmount); //#TODO: Never use transfer. use "call".
-        emit Withdraw(to, nativeTokenAmount); //#TODO:First do state changes of making nativeTokenAmount to zero than emit event.
+        (bool sent, bytes memory data) = to.call{value: nativeTokenAmount}("");
+        require(sent, "Futaba: Failed to withdraw native token");
+        uint256 amount = nativeTokenAmount;
         nativeTokenAmount = 0;
+        emit Withdraw(to, amount);
     }
 }
