@@ -49,6 +49,15 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
 
+    event Packet(
+        address indexed sender,
+        bytes32 indexed queryId,
+        bytes packet,
+        bytes message,
+        address lightClient,
+        address callBack
+    );
+
     event SaveQueryData(
         bytes32 indexed key,
         uint256 indexed height,
