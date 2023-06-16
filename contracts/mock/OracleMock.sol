@@ -23,36 +23,74 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     // Chainlink Mock address
     address public lightClient;
 
+    /**
+     * @notice This event is emitted when the client address is updated
+     * @param client The new client address
+     * @param oldLightClient The old client address
+     * @param updatedAt The timestamp when the client address is updated
+     */
     event SetClient(
         address indexed client,
         address indexed oldLightClient,
         uint256 updatedAt
     );
 
+    /**
+     * @notice This event is emitted when the oracle address is updated
+     * @param oracle The new oracle address
+     * @param oldOracle The old oracle address
+     * @param updatedAt The timestamp when the oracle address is updated
+     */
     event SetOracle(
         address indexed oracle,
         address indexed oldOracle,
         uint256 updatedAt
     );
 
+    /**
+     * @notice This event is emitted when the link token address is updated
+     * @param tokenAddress The new link token address
+     * @param oldTokenAddress The old link token address
+     * @param updatedAt The timestamp when the link token address is updated
+     */
     event SetLinkToken(
         address indexed tokenAddress,
         address indexed oldTokenAddress,
         uint256 updatedAt
     );
 
+    /**
+     * @notice This event is emitted when the job id is updated
+     * @param jobId The new job id
+     * @param oldJobId The old job id
+     * @param updatedAt The timestamp when the job id is updated
+     */
     event SetJobId(
         bytes32 indexed jobId,
         bytes32 indexed oldJobId,
         uint256 updatedAt
     );
 
+    /**
+     * @notice This event is emitted when the fee is updated
+     * @param fee The new fee
+     * @param oldFee The old fee
+     * @param updatedAt The timestamp when the fee is updated
+     */
     event SetFee(
         uint256 indexed fee,
         uint256 indexed oldFee,
         uint256 updatedAt
     );
 
+    /**
+     * @notice Constructor that sets chainlink information
+     * @param _tokenAddress The address of the link token
+     * @param _jobid The job id to be executed by Node Operator
+     * @param _operator The address of the Node Operator
+     * @param _fee The amount of LINK token paid to Node Operator
+     * @param _lightClient The address of the Chainlink Mock
+     */
     constructor(
         address _tokenAddress,
         bytes32 _jobid,
@@ -67,6 +105,11 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         lightClient = _lightClient;
     }
 
+    /**
+     * @notice Send request to Chainlink Node
+     * @param queries Query data formatted for Chainlink
+     * @return requestId Request id issued by chainlink
+     */
     function notifyOracle(
         QueryType.OracleQuery[] memory queries
     ) external onlyLightClient returns (bytes32 requestId) {
@@ -96,10 +139,11 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
             payload,
             (QueryType.OracleResponse[])
         );
-        require(lightClient != address(0x0), "Futaba: invalid ligth client");
+        require(lightClient != address(0), "Futaba: invalid ligth client");
         ILightClientMock(lightClient).updateHeader(responses);
     }
 
+    /** set and get configuration */
     function setClient(address _client) public onlyOwner {
         address oldLightClient = lightClient;
         lightClient = _client;
@@ -154,6 +198,10 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         return fee;
     }
 
+    /* modifier */
+    /**
+     * @notice Modifier to check if the caller is the light client
+     */
     modifier onlyLightClient() {
         require(
             msg.sender == lightClient,
