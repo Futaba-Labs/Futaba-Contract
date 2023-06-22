@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
-import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256 } from "ethers/lib/utils";
+import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
 import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
@@ -194,7 +194,7 @@ describe("Gateway", async function () {
 
       // calculate queryId
       const nonce = await gateway.nonce()
-      const queryId = keccak256(ethers.utils.defaultAbiCoder.encode(["bytes", "uint256"], [encodedQuery, nonce]))
+      const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
 
       let tx = gateway.query(queries, lightClient, callBack, message)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);

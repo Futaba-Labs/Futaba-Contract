@@ -9,21 +9,6 @@ import "../QueryType.sol";
  * @notice NOT AUDITED
  */
 interface IGateway {
-    event Packet(
-        address indexed sender,
-        bytes32 indexed queryId,
-        bytes packet,
-        bytes message,
-        address lightClient,
-        address callBack
-    );
-
-    event QueryReceived(
-        address callBack,
-        QueryType.QueryResponse responses,
-        bytes message
-    );
-
     /**
      * @notice This contract is an endpoint for executing query
      * @param queries query data
