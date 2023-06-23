@@ -18,6 +18,7 @@
     "@chainlink/contracts": "^0.6.1",
     "@ethersproject/abi": "^5.4.7",
     "@ethersproject/providers": "^5.4.7",
+    "@futaba-lab/sdk": "^0.0.0",
     "@gelatonetwork/relay-context": "^3.0.0",
     "@gelatonetwork/relay-sdk": "^4.0.0",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.0",

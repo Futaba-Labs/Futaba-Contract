@@ -5,6 +5,7 @@ import { BigNumber } from "ethers";
 import { concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import DEPLOYMENTS from "../constants/deployments.json"
+import { ChainStage, Fee } from "@futaba-lab/sdk";
 
 const relay = new GelatoRelay();
 
@@ -42,12 +43,8 @@ async function main() {
   console.log("queries: ", JSON.stringify(queries))
 
   try {
-    const dstChainId = 80001 // mumbai
-    const nativeToken = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
-    const gasLimit = BigNumber.from("1000000")
-
-    // calculate fee
-    const fee = await relay.getEstimatedFee(dstChainId, nativeToken, gasLimit, true)
+    const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
+    const fee = await sdk.estimateFee(queries.length)
     console.log("fee: ", fee.toString())
 
     // send transaction
