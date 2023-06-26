@@ -114,6 +114,11 @@ contract Gateway is
     event Withdraw(address indexed to, uint256 amount);
 
     /**
+     * @notice Error if address is zero
+     */
+    error ZeroAddress();
+
+    /**
      * @notice Error if query id does not exist
      * @param queryId Unique id to access query state
      */
@@ -148,20 +153,16 @@ contract Gateway is
         address callBack,
         bytes calldata message
     ) external payable nonReentrant {
-        for (uint i = 0; i < queries.length; i++) {
-            QueryType.QueryRequest memory q = queries[i];
-            require(
-                q.to != address(0),
-                "Futaba: Invalid target contract zero address"
-            );
+        if (callBack == address(0) || lightClient == address(0)) {
+            revert ZeroAddress();
         }
 
-        require(
-            lightClient != address(0),
-            "Futaba: Invalid light client contract"
-        );
-
-        require(callBack != address(0), "Futaba: Invalid callback contract");
+        for (uint i = 0; i < queries.length; i++) {
+            QueryType.QueryRequest memory q = queries[i];
+            if (q.to == address(0)) {
+                revert ZeroAddress();
+            }
+        }
 
         ILightClient lc = ILightClient(lightClient);
         lc.requestQuery(queries);

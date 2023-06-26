@@ -93,7 +93,7 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid target contract zero address")
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
   it("query() - invalid light client", async function () {
@@ -107,7 +107,7 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid light client contract")
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
   it("query() - light client with no interface defined", async function () {
@@ -135,7 +135,7 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWith("Futaba: Invalid callback contract")
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
   describe("When using Chainlink Functions", async function () {
