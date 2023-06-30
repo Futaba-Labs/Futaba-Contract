@@ -234,7 +234,7 @@ contract Gateway is
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
             bytes32 storeKey = keccak256(
-                abi.encode(q.dstChainId, q.to, q.slot)
+                abi.encodePacked(q.dstChainId, q.to, q.slot)
             );
 
             resultStore[storeKey].push(QueryData(q.height, result));

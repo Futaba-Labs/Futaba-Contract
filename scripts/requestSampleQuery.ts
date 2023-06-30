@@ -15,12 +15,12 @@ async function main() {
 
   // storage slot of the token balance on the destination chain
   const slot1 = keccak256(concat([
-    hexZeroPad("0x1aaaeb006AC4DE12C4630BB44ED00A764f37bef8", 32),
+    hexZeroPad("0x2274d2C66dC7936044f7B46b7401c3F5187B78aa", 32),
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
   ]));
 
   const slot2 = keccak256(concat([
-    hexZeroPad("0x1aaaeb006AC4DE12C4630BB44ED00A764f37bef8", 32),
+    hexZeroPad("0x2274d2C66dC7936044f7B46b7401c3F5187B78aa", 32),
     hexZeroPad(BigNumber.from(0).toHexString(), 32),
   ]));
 
@@ -42,18 +42,18 @@ async function main() {
   ]
   console.log("queries: ", JSON.stringify(queries))
 
-  try {
-    const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
-    const fee = await sdk.estimateFee(queries.length)
-    console.log("fee: ", fee.toString())
+  // try {
+  //   const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
+  //   const fee = await sdk.estimateFee(queries.length)
+  //   console.log("fee: ", fee.toString())
 
-    // send transaction
-    const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
-    await tx.wait()
-    console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
-  } catch (error) {
-    console.error(`The transaction is failed: ${JSON.stringify(error)}`)
-  }
+  //   // send transaction
+  //   const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
+  //   await tx.wait()
+  //   console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
+  // } catch (error) {
+  //   console.error(`The transaction is failed: ${JSON.stringify(error)}`)
+  // }
 
 }
 
