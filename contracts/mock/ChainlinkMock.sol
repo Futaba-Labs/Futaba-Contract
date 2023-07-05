@@ -139,7 +139,7 @@ contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
      */
     function verify(
         bytes memory message
-    ) public returns (bool, bytes[] memory) {
+    ) public view returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
