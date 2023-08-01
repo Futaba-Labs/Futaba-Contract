@@ -7,7 +7,7 @@ import "../QueryType.sol";
  * @title Light client mock interface
  * @notice Interfaces used in Light Client mock
  */
-interface ILightClientMock {
+interface IChainlinkLightClient {
     event UpdateHeader(address indexed oracle, bytes32 rootHash, bytes result);
 
     /**

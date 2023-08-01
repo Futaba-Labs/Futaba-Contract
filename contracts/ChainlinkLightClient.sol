@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "../interfaces/ILightClient.sol";
-import "../interfaces/ILightClientMock.sol";
-import "../interfaces/IExternalAdapter.sol";
-import "../lib/TrieProofs.sol";
-import "../lib/RLPReader.sol";
-import "../lib/EthereumDecoder.sol";
+import "./interfaces/ILightClient.sol";
+import "./interfaces/IChainlinkLightClient.sol";
+import "./interfaces/IExternalAdapter.sol";
+import "./lib/TrieProofs.sol";
+import "./lib/RLPReader.sol";
+import "./lib/EthereumDecoder.sol";
 
-import "../QueryType.sol";
+import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title Chainlink mock
+ * @title Chainlink LightClient
  * @notice Light Client Contract when using Chainlink Node Operator
  */
 
-contract ChainlinkMock is ILightClient, ILightClientMock, Ownable {
+contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     using TrieProofs for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;

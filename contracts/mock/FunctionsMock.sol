@@ -3,12 +3,12 @@ pragma solidity ^0.8.9;
 pragma experimental ABIEncoderV2;
 
 import "../interfaces/IOracle.sol";
-import "../interfaces/ILightClientMock.sol";
+import "../interfaces/IChainlinkLightClient.sol";
 import "../QueryType.sol";
 import "hardhat/console.sol";
 
 contract FunctionsMock is IOracle {
-    ILightClientMock public lightClient;
+    IChainlinkLightClient public lightClient;
     event ExecuteRequest(
         string source,
         bytes secrets,
@@ -83,7 +83,7 @@ contract FunctionsMock is IOracle {
     }
 
     function setLightClient(address _lightClient) external {
-        lightClient = ILightClientMock(_lightClient);
+        lightClient = IChainlinkLightClient(_lightClient);
     }
 
     /*  Helper functions */

@@ -9,7 +9,7 @@ import { deployFunctionMockFixture, deployLightClientMockFixture } from "./utils
 import { keccak256 } from "ethers/lib/utils"
 
 //@dev This function is currently not in use
-describe("Chainlink Functions", async function () {
+describe("FunctionsLightClientMock", async function () {
 
   it('executeRequest()', async function () {
     const { functionMock } = await loadFixture(deployFunctionMockFixture)

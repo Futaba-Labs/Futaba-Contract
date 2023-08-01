@@ -6,7 +6,7 @@ import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
 import "../interfaces/IExternalAdapter.sol";
 import "../interfaces/ILightClient.sol";
-import "../interfaces/ILightClientMock.sol";
+import "../interfaces/IChainlinkLightClient.sol";
 import "hardhat/console.sol";
 
 /**
@@ -58,7 +58,7 @@ contract OracleTestMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
             (QueryType.OracleResponse[])
         );
         require(lightClient != address(0x0), "Futaba: invalid ligth client");
-        ILightClientMock(lightClient).updateHeader(responses);
+        IChainlinkLightClient(lightClient).updateHeader(responses);
     }
 
     function setClient(address _client) public onlyOwner {

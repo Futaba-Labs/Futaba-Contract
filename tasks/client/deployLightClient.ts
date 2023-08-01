@@ -4,7 +4,7 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
   .addParam<boolean>("verify", "Verify gateway contract", false, types.boolean)
   .setAction(
     async (taskArgs, hre): Promise<string> => {
-      const LigthClient = await hre.ethers.getContractFactory("ChainlinkMock");
+      const LigthClient = await hre.ethers.getContractFactory("ChainlinkLightClient");
 
       console.log(`Deploying light client...`);
       const client = await LigthClient.deploy();

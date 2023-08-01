@@ -1,4 +1,4 @@
-import { ChainlinkMock, OracleMock, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
+import { ChainlinkLightClient, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
 import { ethers } from "hardhat"
 import { QueryType } from "../typechain-types/contracts/Gateway"
 import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
@@ -9,8 +9,8 @@ import { defaultAbiCoder } from "@ethersproject/abi"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 
-describe("ChainlinkMock", async function () {
-  let chainlinkMock: ChainlinkMock,
+describe("ChainlinkLightClient", async function () {
+  let chainlinkLightClient: ChainlinkLightClient,
     oracleMock: OracleTestMock,
     linkToken: LinkTokenMock,
     operator: Operator,
@@ -34,43 +34,43 @@ describe("ChainlinkMock", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
-    chainlinkMock = await ChainlinkMock.deploy()
-    await chainlinkMock.deployed()
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy()
+    await chainlinkLightClient.deployed()
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
     await oracleMock.deployed()
 
-    let tx = await chainlinkMock.setOracle(oracleMock.address)
+    let tx = await chainlinkLightClient.setOracle(oracleMock.address)
     await tx.wait()
-    tx = await oracleMock.setClient(chainlinkMock.address)
+    tx = await oracleMock.setClient(chainlinkLightClient.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
   })
 
   async function setWhiteList() {
-    await chainlinkMock.connect(owner).addToWhitelist([owner.address])
+    await chainlinkLightClient.connect(owner).addToWhitelist([owner.address])
   }
 
   it("addToWhitelist() - only owner", async function () {
-    await expect(chainlinkMock.connect(otherSingners[0]).addToWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
+    await expect(chainlinkLightClient.connect(otherSingners[0]).addToWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
   })
 
   it("addToWhitelist()", async function () {
     const addresses = [...otherSingners.map(signer => signer.address)]
-    await expect(chainlinkMock.connect(owner).addToWhitelist(addresses)).to.emit(chainlinkMock, "AddWhitelist").withArgs(addresses)
+    await expect(chainlinkLightClient.connect(owner).addToWhitelist(addresses)).to.emit(chainlinkLightClient, "AddWhitelist").withArgs(addresses)
   })
 
   it("removeFromWhitelist() - only owner", async function () {
-    await expect(chainlinkMock.connect(otherSingners[0]).removeFromWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
+    await expect(chainlinkLightClient.connect(otherSingners[0]).removeFromWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
   })
 
   it("removeFromWhitelist()", async function () {
     const addresses = [...otherSingners.map(signer => signer.address)]
-    await expect(chainlinkMock.connect(owner).removeFromWhitelist(addresses)).to.emit(chainlinkMock, "RemoveWhitelist").withArgs(addresses)
+    await expect(chainlinkLightClient.connect(owner).removeFromWhitelist(addresses)).to.emit(chainlinkLightClient, "RemoveWhitelist").withArgs(addresses)
   })
   it("requestQuery() - Too many queries", async function () {
     await setWhiteList()
@@ -81,7 +81,7 @@ describe("ChainlinkMock", async function () {
       queryRequests.push({ dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] })
     }
 
-    await expect(chainlinkMock.requestQuery(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+    await expect(chainlinkLightClient.requestQuery(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
   })
   it("requestQuery() - invalid sender address", async function () { })
 
@@ -100,26 +100,26 @@ describe("ChainlinkMock", async function () {
       ],
       [queryRequests]
     );
-    expect(chainlinkMock.requestQuery(queryRequests)).to.emit(chainlinkMock, "NotifyOracle")
+    expect(chainlinkLightClient.requestQuery(queryRequests)).to.emit(chainlinkLightClient, "NotifyOracle")
       .withArgs(anyValue, oracleMock.address, encodedQuery);
   })
 
   it("updateHeader() - invalid oracle", async function () {
-    expect(chainlinkMock.updateHeader(oracleResponses)).to.be.revertedWith("Futaba: only light client can call this function")
+    expect(chainlinkLightClient.updateHeader(oracleResponses)).to.be.revertedWith("Futaba: only light client can call this function")
   })
 
   it("updateHeader()", async function () {
-    const tx = await chainlinkMock.setOracle(owner.address)
+    const tx = await chainlinkLightClient.setOracle(owner.address)
     await tx.wait()
 
-    expect(chainlinkMock.updateHeader(oracleResponses)).to.emit(chainlinkMock, "UpdateHeader").withArgs(oracleResponses[0]).to.emit(chainlinkMock, "UpdateHeader").withArgs(oracleResponses[1])
+    expect(chainlinkLightClient.updateHeader(oracleResponses)).to.emit(chainlinkLightClient, "UpdateHeader").withArgs(oracleResponses[0]).to.emit(chainlinkLightClient, "UpdateHeader").withArgs(oracleResponses[1])
     for (const response of oracleResponses) {
-      expect(await chainlinkMock.getApprovedStateRoot(response.dstChainId, response.height)).to.equal(response.root)
+      expect(await chainlinkLightClient.getApprovedStateRoot(response.dstChainId, response.height)).to.equal(response.root)
     }
   })
 
   it("verify() - invald account proof", async function () {
-    const tx = await chainlinkMock.setOracle(oracleMock.address)
+    const tx = await chainlinkLightClient.setOracle(oracleMock.address)
     await tx.wait()
 
     await updateHeaderForNode(oracleMock)
@@ -138,7 +138,7 @@ describe("ChainlinkMock", async function () {
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
 
-    expect(chainlinkMock.verify(proof)).to.be.revertedWith("Bad hash")
+    expect(chainlinkLightClient.verify(proof)).to.be.revertedWith("Bad hash")
   })
 
   it("verify() - different trie roots", async function () {
@@ -155,8 +155,7 @@ describe("ChainlinkMock", async function () {
     const proof = defaultAbiCoder.encode(
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
-    const tx = await chainlinkMock.verify(proof)
-    await tx.wait()
+    await chainlinkLightClient.verify(proof)
 
     storageProof.root = ethers.utils.formatBytes32String("0x12345")
 
@@ -172,7 +171,7 @@ describe("ChainlinkMock", async function () {
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
 
-    expect(chainlinkMock.verify(changedProof)).to.be.revertedWith("Futaba: verify - different trie roots")
+    expect(chainlinkLightClient.verify(changedProof)).to.be.revertedWith("Futaba: verify - different trie roots")
   })
   it("verify() - invalid storage proof", async function () {
     await updateHeaderForNode(oracleMock)
@@ -190,7 +189,7 @@ describe("ChainlinkMock", async function () {
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
 
-    expect(chainlinkMock.verify(proof)).to.be.revertedWith("Bad hash")
+    expect(chainlinkLightClient.verify(proof)).to.be.revertedWith("Bad hash")
   })
 
   it("verify()", async function () {
@@ -207,7 +206,7 @@ describe("ChainlinkMock", async function () {
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
 
-    expect(await chainlinkMock.callStatic.verify(proof)).to.deep.equal([
+    expect(await chainlinkLightClient.callStatic.verify(proof)).to.deep.equal([
       true,
       [
         '0x000000000000000000000000000000000000000000000000000000001dcd6500'
@@ -229,10 +228,7 @@ describe("ChainlinkMock", async function () {
       ["tuple(uint32 dstChainId, uint256 height, bytes proof)[]"],
       [[{ dstChainId: DSTCHAINID_GOERLI, height: HEIGTH_GOERLI, proof: encodedProof }]])
 
-    const tx = await chainlinkMock.verify(proof)
-    await tx.wait()
-
-    expect(await chainlinkMock.callStatic.verify(proof)).to.deep.equal([
+    expect(await chainlinkLightClient.callStatic.verify(proof)).to.deep.equal([
       true,
       [
         '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -241,7 +237,7 @@ describe("ChainlinkMock", async function () {
   })
 
   it("getOracle()", async function () {
-    expect(await chainlinkMock.getOracle()).to.equal(oracleMock.address)
+    expect(await chainlinkLightClient.getOracle()).to.equal(oracleMock.address)
   })
   it("estimateFee()", async function () {
     const slots = getSlots()
@@ -250,6 +246,6 @@ describe("ChainlinkMock", async function () {
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
     ]
-    expect(await chainlinkMock.estimateFee(queries)).to.equal(0)
+    expect(await chainlinkLightClient.estimateFee(queries)).to.equal(0)
   })
 })

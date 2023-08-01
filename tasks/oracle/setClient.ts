@@ -5,7 +5,7 @@ task("TASK_SET_LIGHT_CLIENT", "set oracle contract address")
   .addParam<string>("oracle", "the gateway contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const oracle = await hre.ethers.getContractAt("OracleMock", taskArgs.oracle);
+      const oracle = await hre.ethers.getContractAt("ChainlinkOracle", taskArgs.oracle);
 
       const client = taskArgs.client
       try {

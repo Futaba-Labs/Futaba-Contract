@@ -4,16 +4,16 @@ pragma solidity ^0.8.9;
 import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
-import "../interfaces/IExternalAdapter.sol";
-import "../interfaces/ILightClient.sol";
-import "../interfaces/ILightClientMock.sol";
+import "./interfaces/IExternalAdapter.sol";
+import "./interfaces/ILightClient.sol";
+import "./interfaces/IChainlinkLightClient.sol";
 import "hardhat/console.sol";
 
 /**
- * @title Oracle Mock contract
- * @notice This is Oracle's mock contract when using Chainlink Node Operator
+ * @title Chainlink Oracle contract
+ * @notice This is ChainlinkOracle contract when using Chainlink Node Operator
  */
-contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
+contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     using Chainlink for Chainlink.Request;
 
     // Jobid to be executed by Node Operator
@@ -140,7 +140,7 @@ contract OracleMock is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
             (QueryType.OracleResponse[])
         );
         require(lightClient != address(0), "Futaba: invalid ligth client");
-        ILightClientMock(lightClient).updateHeader(responses);
+        IChainlinkLightClient(lightClient).updateHeader(responses);
     }
 
     /** set and get configuration */

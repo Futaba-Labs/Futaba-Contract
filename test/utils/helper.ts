@@ -4,7 +4,7 @@ import { RLP, concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
 import { GetProof } from 'eth-proof'
 //@ts-ignore
 import { Proof } from 'eth-object'
-import { FunctionsMock, LightClientMock, OracleMock, OracleTestMock } from "../../typechain-types";
+import { FunctionsMock, LightClientMock, OracleTestMock } from "../../typechain-types";
 import { SAMPLE_RESPONSE, SAMPLE_RESPONSE_FOR_NODE, SOURCE, ZERO_ADDRESS } from "./constants";
 
 // Calculate slots for testing

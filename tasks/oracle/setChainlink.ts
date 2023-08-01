@@ -5,7 +5,7 @@ task("TASK_SET_CHAINLINK_ORACLE", "set chainlink oracle contract address")
   .addParam<string>("operator", "operator contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const oracle = await hre.ethers.getContractAt("OracleMock", taskArgs.oracle);
+      const oracle = await hre.ethers.getContractAt("ChainlinkOracle", taskArgs.oracle);
 
       const chainlinkNode = taskArgs.operator
 

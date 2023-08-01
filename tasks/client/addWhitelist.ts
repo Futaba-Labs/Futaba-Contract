@@ -5,7 +5,7 @@ task("TASK_ADD_WHITELIST", "add whitelist")
   .addVariadicPositionalParam("addresses")
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const chainlinkMock = await hre.ethers.getContractAt("ChainlinkMock", taskArgs.client);
+      const chainlinkMock = await hre.ethers.getContractAt("ChainlinkLightClient", taskArgs.client);
       const addresses = taskArgs.addresses
 
       try {

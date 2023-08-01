@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../interfaces/ILightClient.sol";
-import "../interfaces/ILightClientMock.sol";
+import "../interfaces/IChainlinkLightClient.sol";
 import "../interfaces/IOracle.sol";
 import "../lib/TrieProofs.sol";
 import "../lib/EthereumDecoder.sol";
@@ -13,7 +13,11 @@ import "../QueryType.sol";
 
 import "hardhat/console.sol";
 
-contract LightClientMock is ILightClient, ILightClientMock, Ownable {
+contract FunctionsLightClientMock is
+    ILightClient,
+    IChainlinkLightClient,
+    Ownable
+{
     enum Location {
         Inline,
         Remote

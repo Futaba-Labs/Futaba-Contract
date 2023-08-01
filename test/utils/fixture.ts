@@ -26,7 +26,7 @@ export async function deployLightClientMockFixture() {
   // Contracts are deployed using the first signer/account by default
   const [owner, otherAccount] = await ethers.getSigners()
 
-  const LightClientMock = await ethers.getContractFactory("LightClientMock")
+  const LightClientMock = await ethers.getContractFactory("FunctionsLightClientMock")
   const lcMock = await LightClientMock.deploy()
   await lcMock.deployed()
 

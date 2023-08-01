@@ -7,7 +7,7 @@ task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
   .addParam<string>("client", "Light Client address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<string> => {
-      const Oracle = await hre.ethers.getContractFactory("OracleMock");
+      const Oracle = await hre.ethers.getContractFactory("ChainlinkOracle");
       const oracleConfig = ORACLE[hre.network.name as keyof typeof ORACLE]
 
       const client = taskArgs.client

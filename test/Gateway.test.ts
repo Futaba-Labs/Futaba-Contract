@@ -3,7 +3,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
 import { deployGatewayFixture } from "./utils/fixture";
@@ -20,7 +20,7 @@ describe("Gateway", async function () {
     functionMock: FunctionsMock,
     lcMock: LightClientMock,
     oracleMock: OracleTestMock,
-    chainlinkMock: ChainlinkMock,
+    chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
     owner: SignerWithAddress,
     otherSigner: SignerWithAddress,
@@ -38,7 +38,7 @@ describe("Gateway", async function () {
     functionMock = await FunctionsMock.deploy()
     await functionMock.deployed()
 
-    const LightClientMock = await ethers.getContractFactory("LightClientMock")
+    const LightClientMock = await ethers.getContractFactory("FunctionsLightClientMock")
     lcMock = await LightClientMock.deploy()
     await lcMock.deployed()
 
@@ -46,13 +46,13 @@ describe("Gateway", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
-    chainlinkMock = await ChainlinkMock.deploy()
-    await chainlinkMock.deployed()
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy()
+    await chainlinkLightClient.deployed()
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
     await oracleMock.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
@@ -66,11 +66,11 @@ describe("Gateway", async function () {
     await tx.wait()
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
-    tx = await chainlinkMock.setOracle(oracleMock.address)
+    tx = await chainlinkLightClient.setOracle(oracleMock.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
-    tx = await chainlinkMock.addToWhitelist([owner.address])
+    tx = await chainlinkLightClient.addToWhitelist([owner.address])
     await tx.wait()
   });
 
@@ -183,7 +183,7 @@ describe("Gateway", async function () {
       const slots = getSlots()
       const src = SRC
       const callBack = TEST_CALLBACK_ADDRESS
-      const lightClient = chainlinkMock.address
+      const lightClient = chainlinkLightClient.address
       const message = MESSAGE
 
       const queries: QueryType.QueryRequestStruct[] = [
@@ -199,7 +199,7 @@ describe("Gateway", async function () {
       let tx = gateway.query(queries, lightClient, callBack, message)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
 
-      const oracle = await chainlinkMock.getOracle()
+      const oracle = await chainlinkLightClient.getOracle()
       const requests = []
 
       // Formatted to check Oracle events
@@ -208,7 +208,7 @@ describe("Gateway", async function () {
       }
 
       const encodedRequest = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height)[]"], [requests])
-      await expect(tx).to.emit(chainlinkMock, "NotifyOracle").withArgs(anyValue, oracle, encodedRequest);
+      await expect(tx).to.emit(chainlinkLightClient, "NotifyOracle").withArgs(anyValue, oracle, encodedRequest);
 
       const query = await gateway.queryStore(queryId)
       expect(query.data).to.be.equal(encodedQuery)
@@ -223,7 +223,7 @@ describe("Gateway", async function () {
     const slots = getSlots()
     const src = SRC_GOERLI
     const callBack = receiverMock.address
-    const lightClient = chainlinkMock.address
+    const lightClient = chainlinkLightClient.address
     const message = MESSAGE
 
     const QueryRequests: QueryType.QueryRequestStruct[] = [
@@ -248,7 +248,7 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
     ]
-    expect(await gateway.estimateFee(chainlinkMock.address, queries)).to.be.equal(0)
+    expect(await gateway.estimateFee(chainlinkLightClient.address, queries)).to.be.equal(0)
   })
 
   it("withdraw() - onlyOwner", async function () {

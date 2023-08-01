@@ -3,7 +3,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, OracleMock, ChainlinkMock, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
@@ -21,7 +21,7 @@ describe("GatewayMockTest", async function () {
     functionMock: FunctionsMock,
     lcMock: LightClientMock,
     oracleMock: OracleTestMock,
-    chainlinkMock: ChainlinkMock,
+    chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
     owner: SignerWithAddress,
     receiverMock: ReceiverMock
@@ -38,7 +38,7 @@ describe("GatewayMockTest", async function () {
     functionMock = await FunctionsMock.deploy()
     await functionMock.deployed()
 
-    const LightClientMock = await ethers.getContractFactory("LightClientMock")
+    const LightClientMock = await ethers.getContractFactory("FunctionsLightClientMock")
     lcMock = await LightClientMock.deploy()
     await lcMock.deployed()
 
@@ -46,13 +46,13 @@ describe("GatewayMockTest", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkMock = await ethers.getContractFactory("ChainlinkMock")
-    chainlinkMock = await ChainlinkMock.deploy()
-    await chainlinkMock.deployed()
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy()
+    await chainlinkLightClient.deployed()
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkMock.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
     await oracleMock.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
@@ -66,11 +66,11 @@ describe("GatewayMockTest", async function () {
     await tx.wait()
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
-    tx = await chainlinkMock.setOracle(oracleMock.address)
+    tx = await chainlinkLightClient.setOracle(oracleMock.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
-    tx = await chainlinkMock.addToWhitelist([owner.address])
+    tx = await chainlinkLightClient.addToWhitelist([owner.address])
     await tx.wait()
   });
 
@@ -97,7 +97,7 @@ describe("GatewayMockTest", async function () {
   }
 
   // Process of pre-executing a request for a query
-  async function requestQueryWithChainlinkNode(callBack: string = receiverMock.address, lightClient: string = chainlinkMock.address, message: string = MESSAGE, queries: QueryType.QueryRequestStruct[] = []) {
+  async function requestQueryWithChainlinkNode(callBack: string = receiverMock.address, lightClient: string = chainlinkLightClient.address, message: string = MESSAGE, queries: QueryType.QueryRequestStruct[] = []) {
     const slots = getSlots()
     const src = SRC_GOERLI
 
@@ -212,7 +212,7 @@ describe("GatewayMockTest", async function () {
     })
 
     it("receiveQuery() - invalid receiver", async function () {
-      const { queryId } = await requestQueryWithChainlinkNode(chainlinkMock.address)
+      const { queryId } = await requestQueryWithChainlinkNode(chainlinkLightClient.address)
 
       const queryResponse: QueryType.QueryResponseStruct = {
         queryId, proof: SINGLE_VALUE_PROOF.proof
