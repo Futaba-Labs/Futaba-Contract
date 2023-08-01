@@ -42,18 +42,19 @@ async function main() {
   ]
   console.log("queries: ", JSON.stringify(queries))
 
-  // try {
-  //   const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
-  //   const fee = await sdk.estimateFee(queries.length)
-  //   console.log("fee: ", fee.toString())
+  try {
+    const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
+    const fee = await sdk.estimateFee(queries.length)
+    console.log("fee: ", fee.toString())
 
-  //   // send transaction
-  //   const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
-  //   await tx.wait()
-  //   console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
-  // } catch (error) {
-  //   console.error(`The transaction is failed: ${JSON.stringify(error)}`)
-  // }
+    // send transaction
+    console.log(await gateway.signer)
+    const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
+    await tx.wait()
+    console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
+  } catch (error) {
+    console.error(`The transaction is failed: ${JSON.stringify(error)}`)
+  }
 
 }
 

@@ -9,16 +9,17 @@ task("TASK_ADD_WHITELIST", "add whitelist")
       const addresses = taskArgs.addresses
 
       try {
-        console.log(`setting addresses to ${addresses}...`)
-        let tx = await (await chainlinkMock.addToWhitelist(addresses, { gasLimit: 2000000 })).wait()
+        console.log(`setting addresses to ${[addresses]}`)
+        const tx = await chainlinkMock.addToWhitelist(addresses, { gasLimit: 10000000 })
+        const receiptTx = await tx.wait()
         console.log(`✅ [${hre.network.name}] addToWhitelist(${addresses})`)
-        console.log(` tx: ${tx.transactionHash}`)
+        console.log(` tx: ${receiptTx.transactionHash}`)
 
       } catch (e: any) {
+        console.log(e)
         if (e.error.message.includes("The chainId + address is already trusted")) {
           console.log("*source already set*")
         } else {
-          console.log(e)
           console.log(`❌ [${hre.network.name}] addToWhitelist(${addresses})`)
         }
       }
