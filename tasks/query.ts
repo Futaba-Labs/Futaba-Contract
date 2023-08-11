@@ -5,7 +5,6 @@ import { BigNumber, ContractReceipt } from "ethers";
 import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import { MESSAGE } from "../test/utils/constants";
 import prettyjson from "prettyjson";
-// import ora from 'ora';
 
 const relay = new GelatoRelay();
 
@@ -52,12 +51,11 @@ task(
 
     const fee = await relay.getEstimatedFee(chainId, nativeToken, gasLimit, true)
     console.log("Query fee: ", fee.toString())
-    // let spinner = ora("Executing query...").start();
+    console.log("Executing query...")
     try {
       const tx = await gateway.query(params, lightClient, callback, message, { gasLimit: 1000000, value: fee.mul(110).div(100) })
       const resTx: ContractReceipt = await tx.wait()
-      // spinner.succeed("Transaction is executed successfully");
-      console.log(prettyjson.render(resTx))
+      console.log("Query transaction is done: ", resTx.transactionHash)
       const events = resTx.events
       let queryId = ""
       if (events !== undefined) {
@@ -65,7 +63,8 @@ task(
       } else {
         throw new Error("QueryId is not found")
       }
-      // spinner = ora("Waitng for relaying and getting data...").start();
+      console.log("Waitng for relaying and getting data...")
+      console.log("Check the transaction on https://demo.futaba.dev/explorer")
       gateway.removeAllListeners()
       const filter = gateway.filters.ReceiveQuery(queryId, null, null, null, null)
 
@@ -73,17 +72,17 @@ task(
         try {
           gateway.on(filter, async (...args) => {
             const results = args[4]
-            // spinner.succeed(`The query result is ${results}`);
+            console.log("The query result is ", results)
             resolve();
           })
         } catch (error) {
-          // spinner.fail(`Listener Failed: ${JSON.stringify(error)}`);
+          console.error("Listener Failed: ", error)
           reject(error)
         }
       })
 
     } catch (error) {
-      // spinner.fail(`The transaction is failed: ${JSON.stringify(error)}`);
+      console.error("Query transaction is failed: ", error)
     }
     return null;
   });
