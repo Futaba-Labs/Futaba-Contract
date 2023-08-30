@@ -74,9 +74,11 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
 
     event Withdraw(address indexed to, uint256 indexed amount);
 
+    error ZeroAddress();
     error InvalidQueryId(bytes32 queryId);
     error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
+    error InvalidFee();
 
     constructor() {
         nonce = 1;
@@ -95,20 +97,21 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         address callBack,
         bytes calldata message
     ) external payable nonReentrant {
+        if (callBack == address(0) || lightClient == address(0)) {
+            revert ZeroAddress();
+        }
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
-            require(
-                q.to != address(0),
-                "Futaba: Invalid target contract zero address"
-            );
+            if (q.to == address(0)) {
+                revert ZeroAddress();
+            }
         }
 
-        require(
-            lightClient != address(0),
-            "Futaba: Invalid light client contract"
-        );
-
         require(callBack != address(0), "Futaba: Invalid callback contract");
+
+        if (msg.value < estimateFee(lightClient, queries)) {
+            revert InvalidFee();
+        }
 
         bytes memory encodedPayload = abi.encode(
             callBack,
@@ -204,8 +207,8 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
-    ) external view returns (uint256) {
-        return 0;
+    ) public view returns (uint256) {
+        return 10000;
     }
 
     /**

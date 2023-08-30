@@ -1,14 +1,15 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ContractReceipt } from "ethers";
+import { BigNumber, ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { GatewayMock, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
-import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, MULTI_QUERY_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
+import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
 import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper";
 import { ethers } from "hardhat";
+import { LightClientMock } from "../typechain-types/contracts/mock/LightClientMock";
 
 interface QueryParam {
   queries: QueryType.QueryRequestStruct[]
@@ -85,7 +86,7 @@ describe("GatewayMockTest", async function () {
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    const tx = await gatewayMock.query(queries, lightClient, callBack, message)
+    const tx = await gatewayMock.query(queries, lightClient, callBack, message, { value: BigNumber.from(20000) })
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
     let queryId = ""
@@ -106,7 +107,7 @@ describe("GatewayMockTest", async function () {
       queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] })
     }
 
-    const tx = await gatewayMock.query(queries, lightClient, callBack, message)
+    const tx = await gatewayMock.query(queries, lightClient, callBack, message, { value: BigNumber.from(20000) })
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
     let queryId = ""
@@ -165,7 +166,7 @@ describe("GatewayMockTest", async function () {
       const queries: QueryType.QueryRequestStruct[] = [
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] }
       ]
-      let tx = await gatewayMock.query(queries, lightClient, callBack, message)
+      let tx = await gatewayMock.query(queries, lightClient, callBack, message, { value: BigNumber.from(20000) })
       const resTx: ContractReceipt = await tx.wait()
       const events = resTx.events
 
@@ -189,6 +190,19 @@ describe("GatewayMockTest", async function () {
   })
 
   describe("When using Chainlink Node Operator", async function () {
+    it("receiveQuery() - invalid fee", async function () {
+      const slots = getSlots()
+      const src = SRC_GOERLI
+
+      const queries = [{ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] }, { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }]
+
+      const callBack = receiverMock.address
+      const lightClient = lcMock.address
+      const message = MESSAGE
+
+      await expect(gatewayMock.query(queries, lightClient, callBack, message)).to.be.revertedWithCustomError(gatewayMock, "InvalidFee")
+    })
+
     it("receiveQuery() - invalid query id", async function () {
       const queryId = await requestQueryWithChainlinkNode()
       const invalidQueryId = hexZeroPad(ZERO_ADDRESS, 32)

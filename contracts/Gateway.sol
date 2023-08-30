@@ -119,6 +119,11 @@ contract Gateway is
     error ZeroAddress();
 
     /**
+     * @notice Error if fee is insufficient
+     */
+    error InvalidFee();
+
+    /**
      * @notice Error if query id does not exist
      * @param queryId Unique id to access query state
      */
@@ -155,6 +160,10 @@ contract Gateway is
     ) external payable nonReentrant {
         if (callBack == address(0) || lightClient == address(0)) {
             revert ZeroAddress();
+        }
+
+        if (msg.value < estimateFee(lightClient, queries)) {
+            revert InvalidFee();
         }
 
         for (uint i = 0; i < queries.length; i++) {
@@ -266,7 +275,7 @@ contract Gateway is
     function estimateFee(
         address lightClient,
         QueryType.QueryRequest[] memory queries
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         return 0;
     }
 
