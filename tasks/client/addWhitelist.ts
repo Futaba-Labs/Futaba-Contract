@@ -15,6 +15,11 @@ task("TASK_ADD_WHITELIST", "add whitelist")
         console.log(`✅ [${hre.network.name}] addToWhitelist(${addresses})`)
         console.log(` tx: ${receiptTx.transactionHash}`)
 
+        for (const address of addresses) {
+          const isWhiteListed = await chainlinkMock.isWhitelisted(address)
+          console.log(` isWhiteListed(${address}): ${isWhiteListed}`)
+        }
+
       } catch (e: any) {
         console.log(e)
         if (e.error.message.includes("The chainId + address is already trusted")) {
