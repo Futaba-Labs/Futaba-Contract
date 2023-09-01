@@ -256,6 +256,12 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         return cache;
     }
 
+    function getQueryStatus(
+        bytes32 queryId
+    ) external view returns (QueryStatus) {
+        return _getQueryStatus(queryId);
+    }
+
     /**
      * @notice Withdraw native token from the contract
      */
@@ -266,5 +272,11 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         uint256 amount = nativeTokenAmount;
         nativeTokenAmount = 0;
         emit Withdraw(to, amount);
+    }
+
+    function _getQueryStatus(
+        bytes32 queryId
+    ) internal view returns (QueryStatus) {
+        return queryStore[queryId].status;
     }
 }

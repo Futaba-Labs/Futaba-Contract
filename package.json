@@ -13,7 +13,8 @@
     "deploy-lc-mock-mumbai": "hardhat run --network mumbai scripts/deployLCMock.ts",
     "deploy-receiver-mock-mumbai": "hardhat run --network mumbai scripts/deployReceiverMock.ts",
     "query:mumbai": "hardhat run --network mumbai scripts/requestSampleQuery.ts",
-    "get-cache": "hardhat TASK_GET_CACHE"
+    "get-cache": "hardhat TASK_GET_CACHE",
+    "coverage": "hardhat coverage"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.6.1",

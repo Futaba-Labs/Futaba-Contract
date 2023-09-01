@@ -251,8 +251,8 @@ describe("GatewayMockTest", async function () {
 
       await expect(gatewayMock.receiveQuery(queryResponse)).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiverError").withArgs(queryId, toUtf8Bytes("Futaba: ReceiverBadMock"))
 
-      const query = await gatewayMock.queryStore(queryId)
-      expect(query.status).to.be.equal(2)
+      // check query status
+      expect(await gatewayMock.getQueryStatus(queryId)).to.be.equal(2)
     })
 
     it("receiveQuery() - single value", async function () {
@@ -270,8 +270,8 @@ describe("GatewayMockTest", async function () {
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
-      const query = await gatewayMock.queryStore(queryId)
-      expect(query.status).to.be.equal(1)
+      // check query status
+      expect(await gatewayMock.getQueryStatus(queryId)).to.be.equal(1)
     })
 
     it("receiveQuery() - single value greater than 32 bytes", async function () {
@@ -289,8 +289,8 @@ describe("GatewayMockTest", async function () {
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
-      const query = await gatewayMock.queryStore(queryId)
-      expect(query.status).to.be.equal(1)
+      // check query status
+      expect(await gatewayMock.getQueryStatus(queryId)).to.be.equal(1)
     })
 
     it("receiveQuery() - multiple values", async function () {
@@ -314,8 +314,8 @@ describe("GatewayMockTest", async function () {
 
       await expect(tx).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
-      const query = await gatewayMock.queryStore(queryId)
-      expect(query.status).to.be.equal(1)
+      // check query status
+      expect(await gatewayMock.getQueryStatus(queryId)).to.be.equal(1)
     })
   })
 

@@ -325,6 +325,16 @@ contract Gateway is
     }
 
     /**
+     * @notice Get the status of the query
+     * @param queryId Unique id to access query state
+     */
+    function getQueryStatus(
+        bytes32 queryId
+    ) external view returns (QueryStatus) {
+        return _getQueryStatus(queryId);
+    }
+
+    /**
      * @notice Withdraw native token from the contract
      */
     function withdraw() external onlyOwner {
@@ -334,5 +344,15 @@ contract Gateway is
         uint256 amount = nativeTokenAmount;
         nativeTokenAmount = 0;
         emit Withdraw(to, amount);
+    }
+
+    /**
+     * @notice Get the status of the query
+     * @param queryId Unique id to access query state
+     */
+    function _getQueryStatus(
+        bytes32 queryId
+    ) internal view returns (QueryStatus) {
+        return queryStore[queryId].status;
     }
 }
