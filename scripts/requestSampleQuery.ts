@@ -33,11 +33,11 @@ async function main() {
   const queries: QueryType.QueryRequestStruct[] = [
     {
       dstChainId: 5, to: usdcOnGoerli, height:
-        8947355, slot: slot1
+        8947359, slot: slot1
     },
     {
       dstChainId: 420, to: linkOnOpGoerli, height:
-        9844410, slot: slot2
+        9844414, slot: slot2
     },
   ]
   console.log("queries: ", JSON.stringify(queries))

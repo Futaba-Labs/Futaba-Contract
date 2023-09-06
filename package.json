@@ -14,6 +14,7 @@
     "deploy-receiver-mock-mumbai": "hardhat run --network mumbai scripts/deployReceiverMock.ts",
     "query:mumbai": "hardhat run --network mumbai scripts/requestSampleQuery.ts",
     "get-cache": "hardhat TASK_GET_CACHE",
+    "setup": "hardhat TASK_SETUP_CONTRACT",
     "coverage": "hardhat coverage"
   },
   "devDependencies": {
