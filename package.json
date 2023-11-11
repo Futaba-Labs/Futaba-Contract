@@ -15,7 +15,8 @@
     "query:mumbai": "hardhat run --network mumbai scripts/requestSampleQuery.ts",
     "get-cache": "hardhat TASK_GET_CACHE",
     "setup": "hardhat TASK_SETUP_CONTRACT",
-    "coverage": "hardhat coverage"
+    "coverage": "hardhat coverage",
+    "verify": "hardhat TASK_VERIFY"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.6.1",

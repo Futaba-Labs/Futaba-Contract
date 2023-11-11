@@ -3,11 +3,13 @@ import ORACLE from "../../constants/oracle.json"
 
 task("TASK_SET_SENDER", "set sender wallet address")
   .addParam<string>("operator", "the operator contract address", "", types.string)
+  .addParam<string>("oracle", "the oracle contract address", "", types.string)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
-      const oracle = ORACLE[hre.network.name as keyof typeof ORACLE];
+      const oracleConfig = ORACLE[hre.network.name as keyof typeof ORACLE]
+
       const operator = await hre.ethers.getContractAt("Operator", taskArgs.operator);
-      const sender = oracle.sender;
+      const sender = oracleConfig.sender;
 
       try {
         console.log(`setting operator to ${sender}...`)
