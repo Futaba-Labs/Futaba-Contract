@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { Gateway, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
 import { getSlots } from "./utils/helper";
@@ -16,7 +16,7 @@ describe("Gateway", async function () {
   let gateway: Gateway,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
-    lcMock: LightClientMock,
+    lcMock: FunctionsLightClientMock,
     oracleMock: OracleTestMock,
     chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
@@ -50,7 +50,7 @@ describe("Gateway", async function () {
     await operator.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy()
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address)
     await chainlinkLightClient.deployed()
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")

@@ -1,5 +1,5 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
-import { ChainlinkLightClient, ChainlinkOracle, LinkTokenMock, Operator } from "../typechain-types"
+import { ChainlinkLightClientMock, ChainlinkOracle, LinkTokenMock, Operator } from "../typechain-types"
 import { ethers } from "hardhat"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
 import { JOB_ID, SAMPLE_RESPONSE_FOR_NODE, SINGLE_VALUE_PROOF } from "./utils/constants"
@@ -7,7 +7,7 @@ import { expect } from "chai"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 
 // @dev oracleTestMock is a contract without modifier of fulfill()
-let chainlinkLightClient: ChainlinkLightClient,
+let chainlinkLightClientMock: ChainlinkLightClientMock,
   chainlinkOracle: ChainlinkOracle,
   linkToken: LinkTokenMock,
   operator: Operator,
@@ -25,22 +25,22 @@ before(async function () {
   operator = await Operator.deploy(linkToken.address, owner.address)
   await operator.deployed()
 
-  const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-  chainlinkLightClient = await ChainlinkLightClient.deploy()
-  await chainlinkLightClient.deployed()
+  const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy()
+  await chainlinkLightClientMock.deployed()
 
   const ChainlinkOracle = await ethers.getContractFactory("ChainlinkOracle")
   const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-  chainlinkOracle = await ChainlinkOracle.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
+  chainlinkOracle = await ChainlinkOracle.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClientMock.address);
   await chainlinkOracle.deployed()
 
-  let tx = await chainlinkLightClient.setOracle(chainlinkOracle.address)
+  let tx = await chainlinkLightClientMock.setOracle(chainlinkOracle.address)
   await tx.wait()
 
   tx = await linkToken.mint(chainlinkOracle.address, ethers.utils.parseEther("1000"))
   await tx.wait()
 
-  tx = await chainlinkLightClient.addToWhitelist([owner.address])
+  tx = await chainlinkLightClientMock.addToWhitelist([owner.address])
   await tx.wait()
 })
 
@@ -48,22 +48,22 @@ describe("ChainlinkOracle", async function () {
   it("constructor()", async function () {
     const ChainlinkOracle = await ethers.getContractFactory("ChainlinkOracle")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    const newChainlinkOracle = await ChainlinkOracle.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
+    const newChainlinkOracle = await ChainlinkOracle.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClientMock.address);
     await newChainlinkOracle.deployed()
     expect(await newChainlinkOracle.getLinkToken()).to.equal(linkToken.address)
     expect(await newChainlinkOracle.getJobId()).to.equal(jobId)
     expect(await newChainlinkOracle.getOracle()).to.equal(operator.address)
     expect(await newChainlinkOracle.getFee()).to.equal(parseEther("0.1"))
-    expect(await newChainlinkOracle.getClient()).to.equal(chainlinkLightClient.address)
+    expect(await newChainlinkOracle.getClient()).to.equal(chainlinkLightClientMock.address)
   })
   it("notifyOracle() - invalid light client", async function () {
     await expect(chainlinkOracle.connect(owner).notifyOracle([])).to.be.revertedWith("Futaba: only light client can call this function")
   })
   it("notifyOracle()", async function () {
-    await expect(chainlinkLightClient.requestQuery(SINGLE_VALUE_PROOF.queries)).to.emit(operator, "OracleRequest")
+    await expect(chainlinkLightClientMock.requestQuery(SINGLE_VALUE_PROOF.queries)).to.emit(operator, "OracleRequest")
   })
   it("fulfill() - invaild oracle", async function () {
-    const tx = await chainlinkLightClient.requestQuery(SINGLE_VALUE_PROOF.queries)
+    const tx = await chainlinkLightClientMock.requestQuery(SINGLE_VALUE_PROOF.queries)
     const receipt = await tx.wait()
     if (receipt.events === undefined) throw new Error("events is undefined")
     const event = receipt.events[3]

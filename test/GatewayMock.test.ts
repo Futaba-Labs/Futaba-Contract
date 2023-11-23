@@ -3,13 +3,12 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
 import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper";
 import { ethers } from "hardhat";
-import { LightClientMock } from "../typechain-types/contracts/mock/LightClientMock";
 
 interface QueryParam {
   queries: QueryType.QueryRequestStruct[]
@@ -20,7 +19,7 @@ describe("GatewayMockTest", async function () {
   let gatewayMock: GatewayMock,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
-    lcMock: LightClientMock,
+    lcMock: FunctionsLightClientMock,
     oracleMock: OracleTestMock,
     chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
@@ -48,7 +47,7 @@ describe("GatewayMockTest", async function () {
     await operator.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy()
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gatewayMock.address)
     await chainlinkLightClient.deployed()
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")

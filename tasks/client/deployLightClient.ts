@@ -1,17 +1,20 @@
 import { task, types } from "hardhat/config";
 
 task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
+  .addParam<string>("gateway", "Gateway contract address", "", types.string)
   .addParam<boolean>("verify", "Verify gateway contract", false, types.boolean)
   .setAction(
     async (taskArgs, hre): Promise<string> => {
       const LigthClient = await hre.ethers.getContractFactory("ChainlinkLightClient");
+      const gateway = taskArgs.gateway;
+      if (!gateway) {
+        throw new Error("Gateway contract address is required");
+      }
 
       console.log(`Deploying light client...`);
-      const client = await LigthClient.deploy();
+      const client = await LigthClient.deploy(gateway);
       await client.deployed();
       console.log(`LigthClient deployed to: `, client.address);
-      console.log("\n")
-
       if (taskArgs.verify) {
         await hre.run("TASK_VERIFY", {
           address: client.address

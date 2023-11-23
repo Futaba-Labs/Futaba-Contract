@@ -1,31 +1,32 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "./interfaces/ILightClient.sol";
-import "./interfaces/IChainlinkLightClient.sol";
-import "./interfaces/IExternalAdapter.sol";
-import "./lib/TrieProofs.sol";
-import "./lib/RLPReader.sol";
-import "./lib/EthereumDecoder.sol";
+import "../interfaces/ILightClient.sol";
+import "../interfaces/IChainlinkLightClient.sol";
+import "../interfaces/IExternalAdapter.sol";
+import "../lib/TrieProofs.sol";
+import "../lib/RLPReader.sol";
+import "../lib/EthereumDecoder.sol";
 
-import "./QueryType.sol";
+import "../QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title Chainlink LightClient
- * @notice Light Client Contract when using Chainlink Node Operator
+ * @title Chainlink LightClient Mock
+ * @notice Mock contract for Chainlink LightClient
  */
 
-contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
+contract ChainlinkLightClientMock is
+    ILightClient,
+    IChainlinkLightClient,
+    Ownable
+{
     using TrieProofs for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
 
     // Limit the number of queries
     uint256 constant MAX_QUERY_COUNT = 10;
-
-    // Gateway contract address
-    address public immutable GATEWAY;
 
     // chainId => height => account => storageRoot
     mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
@@ -113,32 +114,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     event RemoveWhitelist(address[] addresses);
 
     /**
-     * @notice Error if not authorized in Gateway
-     */
-    error NotAuthorized();
-
-    /**
-     * @notice Error if address is 0
-     */
-    error ZeroAddressNotAllowed();
-
-    /**
-     * @notice Constructor that sets LightClient information
-     * @param _gateway The address of the Gateway contract
-     */
-    constructor(address _gateway) {
-        if (_gateway == address(0)) revert ZeroAddressNotAllowed();
-
-        GATEWAY = _gateway;
-    }
-
-    /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
      * @param queries request query data
      */
-    function requestQuery(
-        QueryType.QueryRequest[] memory queries
-    ) external onlyGateway {
+    function requestQuery(QueryType.QueryRequest[] memory queries) external {
         require(isWhitelisted(tx.origin), "Futaba: Not whitelisted");
         uint256 querySize = queries.length;
         require(querySize <= MAX_QUERY_COUNT, "Futaba: Too many queries");
@@ -164,7 +143,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function verify(
         bytes memory message
-    ) public onlyGateway returns (bool, bytes[] memory) {
+    ) public returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
@@ -362,11 +341,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     modifier onlyOracle() {
         require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
-        _;
-    }
-
-    modifier onlyGateway() {
-        if (GATEWAY != msg.sender) revert NotAuthorized();
         _;
     }
 }
