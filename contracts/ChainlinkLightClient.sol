@@ -139,7 +139,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function verify(
         bytes memory message
-    ) public view returns (bool, bytes[] memory) {
+    ) public returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
@@ -161,7 +161,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
             uint256 storageProofSize = storageProofs.length;
 
-            // Check if the state root corresponding to the query is stored in approvedStateRoots
+            // Check if there is a corresponding storage root for each query
             // If not saved, verify account proof
             // If stored, skip account proof verification and verify storage proof
             if (storageRoot != bytes32("")) {
@@ -188,7 +188,9 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                     );
 
                 // If the account proof is successfully verified, the storage root that can be obtained from it is stored in the mapping.
-                storageRoot = account.storageRoot;
+                approvedStorageRoots[proof.dstChainId][proof.height][
+                    accountProof.account
+                ] = account.storageRoot;
 
                 // Storage proof verification
                 bytes memory result;
