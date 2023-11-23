@@ -30,6 +30,8 @@ contract Gateway is
 {
     using Address for address payable;
 
+    /* ----------------------------- Public Storage -------------------------------- */
+
     // nonce for query id
     uint64 private nonce;
 
@@ -56,6 +58,8 @@ contract Gateway is
 
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
+
+    /* ----------------------------- EVENTS -------------------------------- */
 
     /**
      * @notice This event is emitted when a query is sent
@@ -117,6 +121,22 @@ contract Gateway is
      */
     event Withdraw(address indexed to, uint256 amount);
 
+    /* ----------------------------- ERRORS -------------------------------- */
+
+    /**
+     * @notice Error if input is invalid
+     */
+    error InvalidInputMessage();
+
+    /**
+     * @notice Error if input is zero
+     */
+    error InvalidInputZeroValue();
+
+    /**
+     * @notice Error if input is not bytes32
+     */
+    error InvalidInputEmptyBytes32();
     /**
      * @notice Error if address is zero
      */
@@ -145,6 +165,8 @@ contract Gateway is
      */
     error InvalidProof(bytes32 queryId);
 
+    /* ----------------------------- INITIALIZER -------------------------------- */
+
     function initialize(uint64 _nonce) public initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
@@ -152,6 +174,8 @@ contract Gateway is
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /* ----------------------------- EXTERNAL FUNCTION -------------------------------- */
 
     /**
      * @notice This contract is an endpoint for executing query
@@ -164,7 +188,7 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries,
         address lightClient,
         address callBack,
-        bytes calldata message
+        bytes memory message
     ) external payable nonReentrant {
         if (callBack == address(0) || lightClient == address(0)) {
             revert ZeroAddress();
@@ -174,11 +198,16 @@ contract Gateway is
             revert InvalidFee();
         }
 
+        if (message.length == 0) {
+            message = bytes("");
+        }
+
         for (uint i = 0; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
-            if (q.to == address(0)) {
-                revert ZeroAddress();
-            }
+            if (q.to == address(0)) revert ZeroAddress();
+            if (q.dstChainId == 0) revert InvalidInputZeroValue();
+            if (q.height == 0) revert InvalidInputZeroValue();
+            if (q.slot == bytes32(0)) revert InvalidInputEmptyBytes32();
         }
 
         ILightClient lc = ILightClient(lightClient);
@@ -276,18 +305,6 @@ contract Gateway is
     }
 
     /**
-     * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
-     * @param lightClient The light client contract address
-     * @param queries query data
-     */
-    function estimateFee(
-        address lightClient,
-        QueryType.QueryRequest[] memory queries
-    ) public view returns (uint256) {
-        return 0;
-    }
-
-    /**
      * @notice Accessing past query results
      * @param queries Query request
      * @return bytes[] Query results
@@ -361,6 +378,22 @@ contract Gateway is
     function getNonce() external view returns (uint64) {
         return nonce;
     }
+
+    /* ----------------------------- PUBLIC FUNCTION -------------------------------- */
+
+    /**
+     * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
+     * @param lightClient The light client contract address
+     * @param queries query data
+     */
+    function estimateFee(
+        address lightClient,
+        QueryType.QueryRequest[] memory queries
+    ) public view returns (uint256) {
+        return 0;
+    }
+
+    /* ----------------------------- INTERNAL FUNCTION -------------------------------- */
 
     /**
      * @notice Get the status of the query
