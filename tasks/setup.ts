@@ -43,7 +43,7 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
         operator = await hre.run("TASK_DEPLOY_OPERATOR", { verify: false })
       } else {
         operator = deployments[hre.network.name as keyof typeof DEPLOYMENT].operator;
-        console.log("Already deployed Operator Contract:", oracle)
+        console.log("Already deployed Operator Contract:", operator)
       }
 
       if (isOracleDepolyed) {

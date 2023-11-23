@@ -7,7 +7,7 @@ task("TASK_DEPLOY_GATEWAY", "Deploy gateway and oracle contract")
       const Gateway = await hre.ethers.getContractFactory("Gateway");
 
       console.log(`Deploying gateway...`);
-      const gateway = await Gateway.deploy();
+      const gateway = await hre.upgrades.deployProxy(Gateway, [1]);
       await gateway.deployed();
       console.log(`Gateway deployed to:`, gateway.address);
       if (taskArgs.verify) {

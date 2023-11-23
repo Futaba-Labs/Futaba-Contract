@@ -6,10 +6,12 @@ import "./interfaces/IReceiver.sol";
 import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 /**
  * @title Gateway contract
@@ -20,14 +22,16 @@ import "hardhat/console.sol";
 // #TODO: Add @notice & @param description for each: FUNCTION + EVENT + ERROR declaration
 contract Gateway is
     IGateway,
-    Ownable,
-    ReentrancyGuard,
-    GelatoRelayContextERC2771
+    GelatoRelayContextERC2771,
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    ReentrancyGuardUpgradeable
 {
     using Address for address payable;
 
     // nonce for query id
-    uint64 public nonce;
+    uint64 private nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -141,9 +145,13 @@ contract Gateway is
      */
     error InvalidProof(bytes32 queryId);
 
-    constructor() {
-        nonce = 1;
+    function initialize(uint64 _nonce) public initializer {
+        __Ownable_init();
+        __ReentrancyGuard_init();
+        nonce = _nonce;
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /**
      * @notice This contract is an endpoint for executing query
@@ -344,6 +352,14 @@ contract Gateway is
         uint256 amount = nativeTokenAmount;
         nativeTokenAmount = 0;
         emit Withdraw(to, amount);
+    }
+
+    /**
+     * @notice Get the current nonce
+     * @return nonce
+     */
+    function getNonce() external view returns (uint64) {
+        return nonce;
     }
 
     /**

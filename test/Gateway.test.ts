@@ -1,4 +1,3 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
@@ -6,9 +5,8 @@ import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack }
 import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
-import { deployGatewayFixture } from "./utils/fixture";
 import { getSlots } from "./utils/helper";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 
@@ -28,7 +26,12 @@ describe("Gateway", async function () {
 
   before(async () => {
     [owner, otherSigner] = await ethers.getSigners()
-    gateway = (await loadFixture(deployGatewayFixture)).gateway
+
+    const Gateway = await ethers.getContractFactory("Gateway")
+    const g = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
+    await g.deployed()
+    gateway = g as Gateway
+
     const LinkTokenMock = await ethers.getContractFactory("LinkTokenMock")
     const linkMock = await LinkTokenMock.deploy()
     await linkMock.deployed()
@@ -74,11 +77,22 @@ describe("Gateway", async function () {
     await tx.wait()
   });
 
-  it("constructor()", async function () {
+  it("deploy()", async function () {
     const Gateway = await ethers.getContractFactory("Gateway")
-    const newGateway = await Gateway.deploy()
+    const newGateway = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
     await newGateway.deployed()
-    expect(await newGateway.nonce()).to.be.equal(1)
+    expect(await newGateway.getNonce()).to.be.equal(1)
+  })
+
+  it("upgrade()", async function () {
+    const Gateway = await ethers.getContractFactory("Gateway")
+    const newGateway = await upgrades.deployProxy(Gateway, [2], { initializer: 'initialize', kind: 'uups' });
+    await newGateway.deployed()
+    expect(await newGateway.getNonce()).to.be.equal(2)
+
+    await upgrades.upgradeProxy(newGateway, Gateway);
+
+    expect(await newGateway.getNonce()).to.be.equal(2)
   })
 
 
@@ -193,7 +207,7 @@ describe("Gateway", async function () {
       const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, queries, message, lightClient])
 
       // calculate queryId
-      const nonce = await gateway.nonce()
+      const nonce = await gateway.getNonce()
       const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
 
       let tx = gateway.query(queries, lightClient, callBack, message)
@@ -214,7 +228,7 @@ describe("Gateway", async function () {
       expect(query.data).to.be.equal(encodedQuery)
       expect(query.status).to.be.equal(0)
 
-      expect(await gateway.nonce()).to.be.equal(nonce.add(1))
+      expect(await gateway.getNonce()).to.be.equal(nonce.add(1))
 
       // check query status
       expect(await gateway.getQueryStatus(queryId)).to.be.equal(0)
