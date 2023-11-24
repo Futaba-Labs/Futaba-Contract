@@ -377,12 +377,13 @@ contract Gateway is
      * @notice Withdraw native token from the contract
      */
     function withdraw() external onlyOwner {
-        address payable to = payable(msg.sender);
-        (bool sent, bytes memory data) = to.call{value: nativeTokenAmount}("");
-        require(sent, "Futaba: Failed to withdraw native token");
-        uint256 amount = nativeTokenAmount;
+        uint256 withdrawAmount = nativeTokenAmount;
         nativeTokenAmount = 0;
-        emit Withdraw(to, amount);
+
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        require(success, "Futaba: Failed to withdraw native token");
+
+        emit Withdraw(msg.sender, withdrawAmount);
     }
 
     /**
