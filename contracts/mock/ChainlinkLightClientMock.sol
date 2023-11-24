@@ -9,7 +9,7 @@ import "../lib/RLPReader.sol";
 import "../lib/EthereumDecoder.sol";
 
 import "../QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title Chainlink LightClient
@@ -19,7 +19,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract ChainlinkLightClientMock is
     ILightClient,
     IChainlinkLightClient,
-    Ownable
+    Ownable2Step
 {
     /* ----------------------------- Libraries -------------------------------- */
 
