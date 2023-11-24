@@ -37,9 +37,6 @@ before(async function () {
   let tx = await linkToken.mint(chainlinkOracle.address, ethers.utils.parseEther("1000"))
   await tx.wait()
 
-  tx = await chainlinkLightClientMock.addToWhitelist([owner.address])
-  await tx.wait()
-
   tx = await chainlinkOracle.setClient(chainlinkLightClientMock.address)
   await tx.wait()
 })

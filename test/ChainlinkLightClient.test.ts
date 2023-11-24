@@ -60,11 +60,6 @@ describe("ChainlinkLightClient", async function () {
     await tx.wait()
   })
 
-  async function setWhiteList() {
-    await chainlinkLightClient.connect(owner).addToWhitelist([owner.address])
-    await chainlinkLightClientMock.connect(owner).addToWhitelist([owner.address])
-  }
-
   it("constructor() - oracle zero address", async function () {
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
     await expect(ChainlinkLightClient.deploy(gateway.address, ethers.constants.AddressZero)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
@@ -81,24 +76,6 @@ describe("ChainlinkLightClient", async function () {
     expect(await newChainlinkLightClient.GATEWAY()).to.equal(gateway.address)
   })
 
-  it("addToWhitelist() - only owner", async function () {
-    await expect(chainlinkLightClient.connect(otherSingners[0]).addToWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
-  })
-
-  it("addToWhitelist()", async function () {
-    const addresses = [...otherSingners.map(signer => signer.address)]
-    await expect(chainlinkLightClient.connect(owner).addToWhitelist(addresses)).to.emit(chainlinkLightClient, "AddWhitelist").withArgs(addresses)
-  })
-
-  it("removeFromWhitelist() - only owner", async function () {
-    await expect(chainlinkLightClient.connect(otherSingners[0]).removeFromWhitelist([owner.address])).to.be.revertedWith("Ownable: caller is not the owner")
-  })
-
-  it("removeFromWhitelist()", async function () {
-    const addresses = [...otherSingners.map(signer => signer.address)]
-    await expect(chainlinkLightClient.connect(owner).removeFromWhitelist(addresses)).to.emit(chainlinkLightClient, "RemoveWhitelist").withArgs(addresses)
-  })
-
   it("requestQuery() - invalid caller", async function () {
     const slots = getSlots()
 
@@ -111,7 +88,6 @@ describe("ChainlinkLightClient", async function () {
   })
 
   it("requestQuery() - Too many queries", async function () {
-    await setWhiteList()
     const slots = getSlots()
 
     const queryRequests: QueryType.QueryRequestStruct[] = []
@@ -124,7 +100,6 @@ describe("ChainlinkLightClient", async function () {
 
 
   it("requestQuery()", async function () {
-    await setWhiteList()
     const slots = getSlots()
 
     const queryRequests: QueryType.QueryRequestStruct[] = [

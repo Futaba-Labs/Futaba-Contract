@@ -38,9 +38,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     // chainId => height => stateRoot
     mapping(uint256 => mapping(uint256 => bytes32)) public approvedStateRoots;
 
-    // wallet => isWhitelisted
-    mapping(address => bool) public whitelist;
-
     // Contract to execute request to chainlink
     address public oracle;
 
@@ -154,7 +151,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     function requestQuery(
         QueryType.QueryRequest[] memory queries
     ) external onlyGateway {
-        require(isWhitelisted(tx.origin), "Futaba: Not whitelisted");
         uint256 querySize = queries.length;
         require(querySize <= MAX_QUERY_COUNT, "Futaba: Too many queries");
 
@@ -283,32 +279,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
-     * @notice Add to whitelist
-     * @param addresses Addresses to add
-     */
-    function addToWhitelist(address[] calldata addresses) external onlyOwner {
-        for (uint i = 0; i < addresses.length; i++) {
-            whitelist[addresses[i]] = true;
-        }
-
-        emit AddWhitelist(addresses);
-    }
-
-    /**
-     * @notice Remove from whitelist
-     * @param toRemoveAddresses Addresses to remove
-     */
-    function removeFromWhitelist(
-        address[] calldata toRemoveAddresses
-    ) external onlyOwner {
-        for (uint i = 0; i < toRemoveAddresses.length; i++) {
-            delete whitelist[toRemoveAddresses[i]];
-        }
-
-        emit RemoveWhitelist(toRemoveAddresses);
-    }
-
-    /**
      * @notice Function to retrieve the state root stored in a specific chain and height
      * @param chainId Chain ID
      * @param height Block height
@@ -331,15 +301,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /* ----------------------------- Public Functions -------------------------------- */
-
-    /**
-     * @notice Check if address is whitelisted
-     * @param addr Address to check
-     * @return bool True if whitelisted
-     */
-    function isWhitelisted(address addr) public view returns (bool) {
-        return whitelist[addr];
-    }
 
     function setOracle(address _oracle) public onlyOwner {
         if (_oracle == address(0)) revert ZeroAddressNotAllowed();
