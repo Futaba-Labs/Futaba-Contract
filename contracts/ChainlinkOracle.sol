@@ -14,7 +14,14 @@ import "hardhat/console.sol";
  * @notice This is ChainlinkOracle contract when using Chainlink Node Operator
  */
 contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
+    /* ----------------------------- Libraries -------------------------------- */
+
     using Chainlink for Chainlink.Request;
+
+    /* ----------------------------- Public Storage -------------------------------- */
+
+    uint256 private constant MIN_NODE_OPERATOR_FEE = 0.001 ether;
+    uint256 private constant MAX_NODE_OPERATOR_FEE = 1 ether;
 
     // Jobid to be executed by Node Operator
     bytes32 private jobId;
@@ -22,6 +29,8 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     uint256 private fee;
     // Chainlink Mock address
     address public lightClient;
+
+    /* ----------------------------- Events -------------------------------- */
 
     /**
      * @notice This event is emitted when the client address is updated
@@ -83,6 +92,25 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         uint256 updatedAt
     );
 
+    /* ----------------------------- Errors -------------------------------- */
+
+    /**
+     * @notice This error is emitted when the node operator fee is zero
+     */
+    error NodeOperatorFeeCannotBeZero();
+
+    /**
+     * @notice This error is emitted when the node operator fee is less than the minimum fee
+     */
+    error MinNodeOperatorFee();
+
+    /**
+     * @notice This error is emitted when the node operator fee is more than the maximum fee
+     */
+    error MaxNodeOperatorFee();
+
+    /* ----------------------------- Constructor -------------------------------- */
+
     /**
      * @notice Constructor that sets chainlink information
      * @param _tokenAddress The address of the link token
@@ -98,12 +126,14 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         uint256 _fee,
         address _lightClient
     ) ConfirmedOwner(msg.sender) {
-        jobId = _jobid;
+        setJobId(_jobid);
         setChainlinkToken(_tokenAddress);
         setChainlinkOracle(_operator);
-        fee = _fee;
-        lightClient = _lightClient;
+        setFee(_fee);
+        setClient(_lightClient);
     }
+
+    /* ----------------------------- External Functions -------------------------------- */
 
     /**
      * @notice Send request to Chainlink Node
@@ -125,6 +155,8 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
         return requestId;
     }
+
+    /* ----------------------------- Public Functions -------------------------------- */
 
     /**
      * @notice Callback function executed by the Node Operator to return data
@@ -188,6 +220,10 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setFee(uint256 _fee) public onlyOwner {
+        if (_fee == 0) revert NodeOperatorFeeCannotBeZero();
+        if (_fee < MIN_NODE_OPERATOR_FEE) revert MinNodeOperatorFee();
+        if (_fee > MAX_NODE_OPERATOR_FEE) revert MaxNodeOperatorFee();
+
         uint256 oldFee = fee;
         fee = _fee;
 
@@ -198,7 +234,8 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         return fee;
     }
 
-    /* modifier */
+    /* ----------------------------- Modifiers -------------------------------- */
+
     /**
      * @notice Modifier to check if the caller is the light client
      */
