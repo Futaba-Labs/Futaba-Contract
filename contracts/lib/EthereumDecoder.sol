@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-pragma experimental ABIEncoderV2;
-
 import "./RLPEncode.sol";
 import "./RLPReader.sol";
 
