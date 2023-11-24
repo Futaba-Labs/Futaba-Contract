@@ -114,6 +114,11 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      */
     error InvalidInputZeroAddress();
 
+    /**
+     * @notice This error is emitted when the input bytes32 is empty
+     */
+    error InvalidInputEmptyBytes32();
+
     /* ----------------------------- Constructor -------------------------------- */
 
     /**
@@ -217,6 +222,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setJobId(bytes32 _jobId) public onlyOwner {
+        if (_jobId == bytes32(0)) revert InvalidInputEmptyBytes32();
         bytes32 oldJobId = jobId;
         jobId = _jobId;
 

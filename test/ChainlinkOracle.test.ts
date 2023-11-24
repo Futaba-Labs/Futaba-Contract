@@ -120,6 +120,11 @@ describe("ChainlinkOracle", async function () {
     await expect(chainlinkOracle.connect(otherSigner).setJobId(jobId)).to.be.revertedWith("Only callable by owner")
   })
 
+  it("setJobId() - jobId is zero value", async function () {
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(""), 32))
+    await expect(chainlinkOracle.connect(owner).setJobId(jobId)).to.be.revertedWithCustomError(chainlinkOracle, "InvalidInputEmptyBytes32")
+  })
+
   it("setJobId()", async function () {
     const oldJobId = await chainlinkOracle.getJobId()
     const jobId = hexlify(hexZeroPad(toUtf8Bytes("test"), 32))
