@@ -342,6 +342,16 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
+     * @notice Check if the contract supports the interface
+     * @param interfaceId Interface ID
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(ILightClient).interfaceId;
+    }
+
+    /**
      * @notice Check if root exists
      * @param proofs Proofs to check
      */

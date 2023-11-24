@@ -25,4 +25,10 @@ contract ReceiverMock is IReceiver {
     ) external {
         emit QueryReceived(queryId, results, queries, message);
     }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(IReceiver).interfaceId;
+    }
 }

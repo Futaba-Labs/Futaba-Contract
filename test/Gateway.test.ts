@@ -95,7 +95,7 @@ describe("Gateway", async function () {
     expect(await newGateway.getNonce()).to.be.equal(2)
   })
 
-  it("query() - invalid light client", async function () {
+  it("query() - light client address is zero", async function () {
     const slots = getSlots()
     const src = SRC
     const callBack = TEST_CALLBACK_ADDRESS
@@ -109,10 +109,24 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
+  it("query() - callBack address is zero", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = ZERO_ADDRESS
+    const lightClient = chainlinkLightClient.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
+  })
+
   it("query() - light client with no interface defined", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = TEST_CALLBACK_ADDRESS
     const message = MESSAGE
 
@@ -123,24 +137,24 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.reverted
   })
 
-  it("query() - invalid callBack", async function () {
+  it("query() - callBack with no interface defined", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = ZERO_ADDRESS
-    const lightClient = lcMock.address
+    const callBack = TEST_CALLBACK_ADDRESS
+    const lightClient = chainlinkLightClient.address
     const message = MESSAGE
 
     const QueryRequests: QueryType.QueryRequestStruct[] = [
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.reverted
   })
 
-  it("query() - invalid target client", async function () {
+  it("query() - invalid target contract", async function () {
     const slots = getSlots()
     const src = ZERO_ADDRESS
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = MESSAGE
 
@@ -154,7 +168,7 @@ describe("Gateway", async function () {
   it("query() - invalid chainId", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = ethers.utils.toUtf8Bytes("")
 
@@ -168,7 +182,7 @@ describe("Gateway", async function () {
   it("query() - invalid height", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = ethers.utils.toUtf8Bytes("")
 
@@ -181,7 +195,7 @@ describe("Gateway", async function () {
 
   it("query() - invalid slot", async function () {
     const src = SRC
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = ethers.utils.toUtf8Bytes("")
     const emptySlot = ethers.utils.formatBytes32String("")
@@ -199,7 +213,7 @@ describe("Gateway", async function () {
     it("query() - single query", async function () {
       const slots = getSlots()
       const src = SRC
-      const callBack = TEST_CALLBACK_ADDRESS
+      const callBack = receiverMock.address
       const lightClient = lcMock.address
       const message = MESSAGE
 
@@ -239,7 +253,7 @@ describe("Gateway", async function () {
     it("query()", async function () {
       const slots = getSlots()
       const src = SRC
-      const callBack = TEST_CALLBACK_ADDRESS
+      const callBack = receiverMock.address
       const lightClient = chainlinkLightClient.address
       const message = MESSAGE
 
@@ -280,7 +294,7 @@ describe("Gateway", async function () {
     it("query() - no message", async function () {
       const slots = getSlots()
       const src = SRC
-      const callBack = TEST_CALLBACK_ADDRESS
+      const callBack = receiverMock.address
       const lightClient = chainlinkLightClient.address
       const emptyMessage = ethers.utils.toUtf8Bytes("");
 

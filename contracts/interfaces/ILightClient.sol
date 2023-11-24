@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "../QueryType.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Light client interface
@@ -9,7 +10,7 @@ import "../QueryType.sol";
  * @notice NOT AUDITED
  */
 
-interface ILightClient {
+interface ILightClient is IERC165 {
     /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
      * @param queries request query data

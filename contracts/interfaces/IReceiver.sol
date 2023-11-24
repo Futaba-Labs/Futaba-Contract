@@ -2,13 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "../QueryType.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Receiver interface
  * @notice This interface is for the user to receive the results of the query
  * @notice NOT AUDITED
  */
-interface IReceiver {
+interface IReceiver is IERC165 {
     /**
      * @notice This function is used to receive the results of the query
      * @param results The results of the query

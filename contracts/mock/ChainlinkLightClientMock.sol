@@ -301,6 +301,12 @@ contract ChainlinkLightClientMock is
         return approvedStateRoots[chainId][height];
     }
 
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(ILightClient).interfaceId;
+    }
+
     /* internal function */
 
     /**

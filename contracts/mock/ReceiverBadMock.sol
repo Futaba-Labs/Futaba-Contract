@@ -8,7 +8,7 @@ import "../QueryType.sol";
  * @title ReceiverBadMock contract
  * @notice Contracts for generating errors in receiver when testing
  */
-contract ReceiverBadMock {
+contract ReceiverBadMock is IReceiver {
     function receiveQuery(
         bytes32 queryId,
         bytes[] memory results,
@@ -16,5 +16,11 @@ contract ReceiverBadMock {
         bytes memory message
     ) external {
         revert("Futaba: ReceiverBadMock");
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(IReceiver).interfaceId;
     }
 }

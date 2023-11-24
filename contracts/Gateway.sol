@@ -12,6 +12,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+import "hardhat/console.sol";
 
 /**
  * @title Gateway contract
@@ -31,6 +34,9 @@ contract Gateway is
     using Address for address payable;
 
     /* ----------------------------- Public Storage -------------------------------- */
+
+    bytes4 private constant _ILight_Client_Id = 0x7e256406;
+    bytes4 private constant _IReceiver_Id = 0x36f50db1;
 
     // nonce for query id
     uint64 private nonce;
@@ -165,6 +171,11 @@ contract Gateway is
      */
     error InvalidProof(bytes32 queryId);
 
+    /**
+     * @notice Error if callback or light client does not support interface
+     */
+    error CallbackOrLightClientDontSupportInterface();
+
     /* ----------------------------- INITIALIZER -------------------------------- */
 
     function initialize(uint64 _nonce) public initializer {
@@ -190,8 +201,11 @@ contract Gateway is
         address callBack,
         bytes memory message
     ) external payable nonReentrant {
-        if (callBack == address(0) || lightClient == address(0)) {
+        if (callBack == address(0) || lightClient == address(0))
             revert ZeroAddress();
+
+        if (!_checkSupportedInterface(callBack, lightClient)) {
+            revert CallbackOrLightClientDontSupportInterface();
         }
 
         if (msg.value < estimateFee(lightClient, queries)) {
@@ -403,5 +417,14 @@ contract Gateway is
         bytes32 queryId
     ) internal view returns (QueryStatus) {
         return queryStore[queryId].status;
+    }
+
+    function _checkSupportedInterface(
+        address callBackAddress,
+        address lightClient
+    ) internal view returns (bool) {
+        return
+            IERC165(callBackAddress).supportsInterface(_IReceiver_Id) &&
+            IERC165(lightClient).supportsInterface(_ILight_Client_Id);
     }
 }

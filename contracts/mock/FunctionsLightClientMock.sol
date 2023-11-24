@@ -253,6 +253,12 @@ contract FunctionsLightClientMock is
         return config;
     }
 
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(ILightClient).interfaceId;
+    }
+
     modifier onlyOracle() {
         require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
         _;
