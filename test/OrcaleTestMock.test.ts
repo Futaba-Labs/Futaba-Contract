@@ -23,18 +23,16 @@ before(async function () {
   operator = await Operator.deploy(linkToken.address, owner.address)
   await operator.deployed()
 
-  const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
-  chainlinkLightClientMock = await ChainlinkLightClient.deploy()
-  await chainlinkLightClientMock.deployed()
-
   const OracleTestMock = await ethers.getContractFactory("OracleTestMock")
   const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-  oracleTestMock = await OracleTestMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClientMock.address);
+  oracleTestMock = await OracleTestMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
   await oracleTestMock.deployed()
 
-  let tx = await chainlinkLightClientMock.setOracle(oracleTestMock.address)
-  await tx.wait()
-  tx = await oracleTestMock.setClient(chainlinkLightClientMock.address)
+  const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy(oracleTestMock.address)
+  await chainlinkLightClientMock.deployed()
+
+  let tx = await oracleTestMock.setClient(chainlinkLightClientMock.address)
   await tx.wait()
   tx = await linkToken.mint(oracleTestMock.address, ethers.utils.parseEther("1000"))
   await tx.wait()

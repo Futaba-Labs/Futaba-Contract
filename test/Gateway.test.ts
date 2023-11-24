@@ -49,31 +49,32 @@ describe("Gateway", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address)
-    await chainlinkLightClient.deployed()
-
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
+
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address)
+    await chainlinkLightClient.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
     receiverMock = await ReceiverMock.deploy()
     await receiverMock.deployed()
 
     let tx = await lcMock.setOracle(functionMock.address)
+    await tx.wait()
     tx = await lcMock.setSubscriptionId(0)
     await tx.wait()
     tx = await lcMock.setSource(SOURCE)
     await tx.wait()
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
-    tx = await chainlinkLightClient.setOracle(oracleMock.address)
-    await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
     tx = await chainlinkLightClient.addToWhitelist([owner.address])
+    await tx.wait()
+    tx = await oracleMock.setClient(chainlinkLightClient.address)
     await tx.wait()
   });
 

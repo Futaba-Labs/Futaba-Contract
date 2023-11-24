@@ -17,9 +17,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 
 contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
+    /* ----------------------------- Libraries -------------------------------- */
+
     using TrieProofs for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
+
+    /* ----------------------------- Public Storage -------------------------------- */
 
     // Limit the number of queries
     uint256 constant MAX_QUERY_COUNT = 10;
@@ -39,6 +43,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
     // Contract to execute request to chainlink
     address public oracle;
+
+    /* ----------------------------- Structure -------------------------------- */
 
     /**
      * @notice Proof data
@@ -76,6 +82,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         bytes proof;
     }
 
+    /* ----------------------------- Events -------------------------------- */
+
     /**
      * @notice The event that is emitted when state root is updated
      * @param chainId Destination chain id
@@ -112,6 +120,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     event RemoveWhitelist(address[] addresses);
 
+    /* ----------------------------- Errors -------------------------------- */
+
     /**
      * @notice Error if not authorized in Gateway
      */
@@ -122,15 +132,20 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     error ZeroAddressNotAllowed();
 
+    /* ----------------------------- Constructor -------------------------------- */
+
     /**
      * @notice Constructor that sets LightClient information
      * @param _gateway The address of the Gateway contract
      */
-    constructor(address _gateway) {
+    constructor(address _gateway, address _oracle) {
         if (_gateway == address(0)) revert ZeroAddressNotAllowed();
 
         GATEWAY = _gateway;
+        setOracle(_oracle);
     }
+
+    /* ----------------------------- External Functions -------------------------------- */
 
     /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
@@ -294,23 +309,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
-     * @notice Check if address is whitelisted
-     * @param addr Address to check
-     * @return bool True if whitelisted
-     */
-    function isWhitelisted(address addr) public view returns (bool) {
-        return whitelist[addr];
-    }
-
-    function setOracle(address _oracle) public onlyOwner {
-        oracle = _oracle;
-    }
-
-    function getOracle() public view returns (address) {
-        return oracle;
-    }
-
-    /**
      * @notice Function to retrieve the state root stored in a specific chain and height
      * @param chainId Chain ID
      * @param height Block height
@@ -322,7 +320,37 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         return approvedStateRoots[chainId][height];
     }
 
-    /* internal function */
+    /**
+     * @notice Check if the contract supports the interface
+     * @param interfaceId Interface ID
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(ILightClient).interfaceId;
+    }
+
+    /* ----------------------------- Public Functions -------------------------------- */
+
+    /**
+     * @notice Check if address is whitelisted
+     * @param addr Address to check
+     * @return bool True if whitelisted
+     */
+    function isWhitelisted(address addr) public view returns (bool) {
+        return whitelist[addr];
+    }
+
+    function setOracle(address _oracle) public onlyOwner {
+        if (_oracle == address(0)) revert ZeroAddressNotAllowed();
+        oracle = _oracle;
+    }
+
+    function getOracle() public view returns (address) {
+        return oracle;
+    }
+
+    /* ----------------------------- Internal Functions -------------------------------- */
 
     /**
      * @notice Validate storage proof and retrieve target data
@@ -342,16 +370,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
-     * @notice Check if the contract supports the interface
-     * @param interfaceId Interface ID
-     */
-    function supportsInterface(
-        bytes4 interfaceId
-    ) external pure returns (bool) {
-        return interfaceId == type(ILightClient).interfaceId;
-    }
-
-    /**
      * @notice Check if root exists
      * @param proofs Proofs to check
      */
@@ -366,7 +384,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         }
     }
 
-    /* modifier */
+    /* ----------------------------- Modifiers -------------------------------- */
     /**
      * @notice Modifier to check if the caller is the oracle
      */

@@ -12,8 +12,8 @@ import "../QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title Chainlink LightClient Mock
- * @notice Mock contract for Chainlink LightClient
+ * @title Chainlink LightClient
+ * @notice Light Client Contract when using Chainlink Node Operator
  */
 
 contract ChainlinkLightClientMock is
@@ -21,9 +21,13 @@ contract ChainlinkLightClientMock is
     IChainlinkLightClient,
     Ownable
 {
+    /* ----------------------------- Libraries -------------------------------- */
+
     using TrieProofs for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
+
+    /* ----------------------------- Public Storage -------------------------------- */
 
     // Limit the number of queries
     uint256 constant MAX_QUERY_COUNT = 10;
@@ -40,6 +44,8 @@ contract ChainlinkLightClientMock is
 
     // Contract to execute request to chainlink
     address public oracle;
+
+    /* ----------------------------- Structure -------------------------------- */
 
     /**
      * @notice Proof data
@@ -77,6 +83,8 @@ contract ChainlinkLightClientMock is
         bytes proof;
     }
 
+    /* ----------------------------- Events -------------------------------- */
+
     /**
      * @notice The event that is emitted when state root is updated
      * @param chainId Destination chain id
@@ -112,6 +120,30 @@ contract ChainlinkLightClientMock is
      * @param addresses Removed addresses
      */
     event RemoveWhitelist(address[] addresses);
+
+    /* ----------------------------- Errors -------------------------------- */
+
+    /**
+     * @notice Error if not authorized in Gateway
+     */
+    error NotAuthorized();
+
+    /**
+     * @notice Error if address is 0
+     */
+    error ZeroAddressNotAllowed();
+
+    /* ----------------------------- Constructor -------------------------------- */
+
+    /**
+     * @notice Constructor that sets LightClient information
+     * @param _oracle Chainlink contract address
+     */
+    constructor(address _oracle) {
+        setOracle(_oracle);
+    }
+
+    /* ----------------------------- External Functions -------------------------------- */
 
     /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
@@ -273,23 +305,6 @@ contract ChainlinkLightClientMock is
     }
 
     /**
-     * @notice Check if address is whitelisted
-     * @param addr Address to check
-     * @return bool True if whitelisted
-     */
-    function isWhitelisted(address addr) public view returns (bool) {
-        return whitelist[addr];
-    }
-
-    function setOracle(address _oracle) public onlyOwner {
-        oracle = _oracle;
-    }
-
-    function getOracle() public view returns (address) {
-        return oracle;
-    }
-
-    /**
      * @notice Function to retrieve the state root stored in a specific chain and height
      * @param chainId Chain ID
      * @param height Block height
@@ -301,13 +316,37 @@ contract ChainlinkLightClientMock is
         return approvedStateRoots[chainId][height];
     }
 
+    /**
+     * @notice Check if the contract supports the interface
+     * @param interfaceId Interface ID
+     */
     function supportsInterface(
         bytes4 interfaceId
-    ) external view returns (bool) {
+    ) external pure returns (bool) {
         return interfaceId == type(ILightClient).interfaceId;
     }
 
-    /* internal function */
+    /* ----------------------------- Public Functions -------------------------------- */
+
+    /**
+     * @notice Check if address is whitelisted
+     * @param addr Address to check
+     * @return bool True if whitelisted
+     */
+    function isWhitelisted(address addr) public view returns (bool) {
+        return whitelist[addr];
+    }
+
+    function setOracle(address _oracle) public onlyOwner {
+        if (_oracle == address(0)) revert ZeroAddressNotAllowed();
+        oracle = _oracle;
+    }
+
+    function getOracle() public view returns (address) {
+        return oracle;
+    }
+
+    /* ----------------------------- Internal Functions -------------------------------- */
 
     /**
      * @notice Validate storage proof and retrieve target data
@@ -341,7 +380,7 @@ contract ChainlinkLightClientMock is
         }
     }
 
-    /* modifier */
+    /* ----------------------------- Modifiers -------------------------------- */
     /**
      * @notice Modifier to check if the caller is the oracle
      */

@@ -41,24 +41,20 @@ describe("ChainlinkLightClient", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
+    const OracleMock = await ethers.getContractFactory("OracleTestMock")
+    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
+    await oracleMock.deployed()
+
     const ChainlinkLightClientMock = await ethers.getContractFactory("ChainlinkLightClientMock")
-    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy()
+    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(oracleMock.address)
     await chainlinkLightClientMock.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address)
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address)
     await chainlinkLightClient.deployed()
 
-    const OracleMock = await ethers.getContractFactory("OracleTestMock")
-    const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
-    await oracleMock.deployed()
-
-    let tx = await chainlinkLightClient.setOracle(oracleMock.address)
-    await tx.wait()
-    tx = await chainlinkLightClientMock.setOracle(oracleMock.address)
-    await tx.wait()
-    tx = await oracleMock.setClient(chainlinkLightClient.address)
+    let tx = await oracleMock.setClient(chainlinkLightClient.address)
     await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
@@ -69,9 +65,18 @@ describe("ChainlinkLightClient", async function () {
     await chainlinkLightClientMock.connect(owner).addToWhitelist([owner.address])
   }
 
+  it("constructor() - oracle zero address", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(gateway.address, ethers.constants.AddressZero)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+  it("constructor() - gateway zero address", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(ethers.constants.AddressZero, oracleMock.address)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+
   it("constructor()", async function () {
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    const newChainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address);
+    const newChainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address);
     await newChainlinkLightClient.deployed()
     expect(await newChainlinkLightClient.GATEWAY()).to.equal(gateway.address)
   })
