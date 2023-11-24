@@ -77,6 +77,10 @@ describe("ChainlinkOracle", async function () {
     await expect(chainlinkOracle.connect(otherSigner).setClient(otherSigner.address)).to.be.revertedWith("Only callable by owner")
   })
 
+  it("setClient() - client is zero address", async function () {
+    await expect(chainlinkOracle.connect(owner).setClient(ethers.constants.AddressZero)).to.be.revertedWithCustomError(chainlinkOracle, "InvalidInputZeroAddress")
+  })
+
   it("setClient()", async function () {
     const oldClient = await chainlinkOracle.getClient()
     await expect(chainlinkOracle.connect(owner).setClient(owner.address)).to.emit(chainlinkOracle, "SetClient").withArgs(owner.address, oldClient, anyValue)
@@ -87,6 +91,10 @@ describe("ChainlinkOracle", async function () {
     await expect(chainlinkOracle.connect(otherSigner).setOracle(otherSigner.address)).to.be.revertedWith("Only callable by owner")
   })
 
+  it("setOracle() - oracle is zero address", async function () {
+    await expect(chainlinkOracle.connect(owner).setOracle(ethers.constants.AddressZero)).to.be.revertedWithCustomError(chainlinkOracle, "InvalidInputZeroAddress")
+  })
+
   it("setOracle()", async function () {
     const oldOracle = await chainlinkOracle.getOracle()
     await expect(chainlinkOracle.connect(owner).setOracle(owner.address)).to.emit(chainlinkOracle, "SetOracle").withArgs(owner.address, oldOracle, anyValue)
@@ -95,6 +103,10 @@ describe("ChainlinkOracle", async function () {
 
   it("setLinkToken() - onlyOwner", async function () {
     await expect(chainlinkOracle.connect(otherSigner).setLinkToken(otherSigner.address)).to.be.revertedWith("Only callable by owner")
+  })
+
+  it("setLinkToken() - linkToken is zero address", async function () {
+    await expect(chainlinkOracle.connect(owner).setLinkToken(ethers.constants.AddressZero)).to.be.revertedWithCustomError(chainlinkOracle, "InvalidInputZeroAddress")
   })
 
   it("setLinkToken()", async function () {

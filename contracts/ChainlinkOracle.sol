@@ -109,6 +109,11 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      */
     error MaxNodeOperatorFee();
 
+    /**
+     * @notice This error is emitted when the input address is zero
+     */
+    error InvalidInputZeroAddress();
+
     /* ----------------------------- Constructor -------------------------------- */
 
     /**
@@ -177,6 +182,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     /** set and get configuration */
     function setClient(address _client) public onlyOwner {
+        if (_client == address(0)) revert InvalidInputZeroAddress();
         address oldLightClient = lightClient;
         lightClient = _client;
         emit SetClient(_client, oldLightClient, block.timestamp);
@@ -187,6 +193,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setLinkToken(address _tokenAddress) public onlyOwner {
+        if (_tokenAddress == address(0)) revert InvalidInputZeroAddress();
         address oldTokenAddress = chainlinkTokenAddress();
         setChainlinkToken(_tokenAddress);
 
@@ -198,6 +205,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     function setOracle(address _oracle) public onlyOwner {
+        if (_oracle == address(0)) revert InvalidInputZeroAddress();
         address oldOracle = chainlinkOracleAddress();
         setChainlinkOracle(_oracle);
 
