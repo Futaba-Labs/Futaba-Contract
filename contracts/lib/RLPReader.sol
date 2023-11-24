@@ -24,6 +24,8 @@ library RLPReader {
         uint256 nextPtr; // Position of the next item in the list.
     }
 
+    error InvalidItemLength();
+
     /*
      * @dev Returns the next element in the iteration. Reverts if it has not next element.
      * @param self The iterator.
@@ -60,6 +62,8 @@ library RLPReader {
             memPtr := add(item, 0x20)
         }
 
+        uint256 len = item.length;
+        if (_itemLength(memPtr) != len) revert InvalidItemLength();
         return RLPItem(item.length, memPtr);
     }
 
@@ -290,6 +294,9 @@ library RLPReader {
             currPtr = currPtr + _itemLength(currPtr); // skip over an item
             count++;
         }
+        uint256 len = item.len;
+
+        if (_itemLength(item.memPtr) != len) revert InvalidItemLength();
 
         return count;
     }
