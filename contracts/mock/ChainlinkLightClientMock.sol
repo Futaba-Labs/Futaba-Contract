@@ -29,11 +29,11 @@ contract ChainlinkLightClientMock is
     uint256 constant MAX_QUERY_COUNT = 10;
 
     // chainId => height => account => storageRoot
-    mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
+    mapping(uint256 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
 
     // chainId => height => stateRoot
-    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
+    mapping(uint256 => mapping(uint256 => bytes32)) public approvedStateRoots;
 
     // wallet => isWhitelisted
     mapping(address => bool) public whitelist;
@@ -48,7 +48,7 @@ contract ChainlinkLightClientMock is
      * @param root State root
      */
     struct Proof {
-        uint32 dstChainId;
+        uint256 dstChainId;
         uint256 height;
         bytes proof;
     }
@@ -84,7 +84,7 @@ contract ChainlinkLightClientMock is
      * @param root State root
      */
     event UpdateStateRoot(
-        uint32 indexed chainId,
+        uint256 indexed chainId,
         uint256 indexed height,
         bytes32 root
     );
@@ -303,7 +303,7 @@ contract ChainlinkLightClientMock is
 
     function supportsInterface(
         bytes4 interfaceId
-    ) external pure returns (bool) {
+    ) external view returns (bool) {
         return interfaceId == type(ILightClient).interfaceId;
     }
 

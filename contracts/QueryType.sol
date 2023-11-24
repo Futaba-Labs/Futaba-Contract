@@ -7,7 +7,7 @@ pragma solidity ^0.8.9;
  */
 contract QueryType {
     struct QueryRequest {
-        uint32 dstChainId;
+        uint256 dstChainId;
         address to;
         // block height
         uint256 height;
@@ -16,12 +16,12 @@ contract QueryType {
     }
 
     struct OracleQuery {
-        uint32 dstChainId;
+        uint256 dstChainId;
         uint256 height;
     }
 
     struct OracleResponse {
-        uint32 dstChainId;
+        uint256 dstChainId;
         uint256 height;
         // state root
         bytes32 root;

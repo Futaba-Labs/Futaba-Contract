@@ -26,7 +26,7 @@ contract FunctionsLightClientMock is
     using TrieProofs for bytes;
 
     struct Proof {
-        uint32 dstChainId;
+        uint256 dstChainId;
         uint256 height;
         bytes proof;
     }
@@ -45,11 +45,11 @@ contract FunctionsLightClientMock is
         uint64 gasPerSlot;
     }
 
-    mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
+    mapping(uint256 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
 
-    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
-    mapping(uint32 => string) public providerURLs;
+    mapping(uint256 => mapping(uint256 => bytes32)) public approvedStateRoots;
+    mapping(uint256 => string) public providerURLs;
 
     address public oracle;
 
@@ -70,7 +70,7 @@ contract FunctionsLightClientMock is
     event SetConfig(uint64 baseGas, uint64 gasPerSlot);
 
     event UpdateStateRoot(
-        uint32 indexed chainId,
+        uint256 indexed chainId,
         uint256 indexed height,
         bytes32 root
     );

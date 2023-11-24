@@ -245,7 +245,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: SINGLE_VALUE_PROOF.proof
       }
       const results = SINGLE_VALUE_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
       await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
 
       await expect(gatewayMock.receiveQuery(queryResponse)).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiverError").withArgs(queryId, toUtf8Bytes("Futaba: ReceiverBadMock"))
@@ -265,7 +265,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: SINGLE_VALUE_PROOF.proof
       }
       const results = SINGLE_VALUE_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
@@ -284,7 +284,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: GREATER_THAN_32BYTES_PROOF.proof
       }
       const results = GREATER_THAN_32BYTES_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
@@ -307,7 +307,7 @@ describe("GatewayMockTest", async function () {
       const tx = gatewayMock.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
 
       for (let i = 0; i < results.length; i++) {
-        const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[i].dstChainId, queries[i].to, queries[i].slot]))
+        const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[i].dstChainId, queries[i].to, queries[i].slot]))
         await expect(tx).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[i].height, results[i])
       }
 

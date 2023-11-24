@@ -35,8 +35,8 @@ contract Gateway is
 
     /* ----------------------------- Public Storage -------------------------------- */
 
-    bytes4 private constant _ILight_Client_Id = 0x7e256406;
-    bytes4 private constant _IReceiver_Id = 0x36f50db1;
+    bytes4 private constant _ILight_Client_Id = 0xaba23c56;
+    bytes4 private constant _IReceiver_Id = 0xb1f586d1;
 
     // nonce for query id
     uint64 private nonce;
