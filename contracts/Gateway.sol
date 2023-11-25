@@ -35,11 +35,16 @@ contract Gateway is
 
     /* ----------------------------- Public Storage -------------------------------- */
 
+    uint256 public constant MAX_PROTOCOL_FEE = 1 ether; // 1 ETH
+
     bytes4 private constant _ILight_Client_Id = 0xaba23c56;
     bytes4 private constant _IReceiver_Id = 0xb1f586d1;
 
     // nonce for query id
     uint64 private nonce;
+
+    // Protocol fee
+    uint256 public protocolFee;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -127,6 +132,12 @@ contract Gateway is
      */
     event Withdraw(address indexed to, uint256 amount);
 
+    /**
+     * @notice This event is emitted when the protocol fee is updated
+     * @param protocolFee The new protocol fee
+     */
+    event UpdateProtocolFee(uint256 protocolFee);
+
     /* ----------------------------- ERRORS -------------------------------- */
 
     /**
@@ -176,12 +187,22 @@ contract Gateway is
      */
     error CallbackOrLightClientDontSupportInterface();
 
+    /**
+     * @notice Error if max protocol fee is exceeded
+     */
+    error MaxProtocolFeeExceeded();
+
     /* ----------------------------- INITIALIZER -------------------------------- */
 
-    function initialize(uint64 _nonce) public initializer {
+    function initialize(
+        uint64 _nonce,
+        uint256 _protocolFee
+    ) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
+
         nonce = _nonce;
+        setProtocolFee(_protocolFee);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
@@ -405,7 +426,24 @@ contract Gateway is
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        return 0;
+        uint256 verificationFee = ILightClient(lightClient).estimateFee(
+            queries
+        );
+        // Total fee is the sum of protocol fee and verification fee
+        uint256 totalFee = protocolFee + verificationFee;
+        return totalFee;
+    }
+
+    /**
+     * @notice Get the current protocol fee
+     * @param _protocolFee The new protocol fee
+     */
+    function setProtocolFee(uint256 _protocolFee) public onlyOwner {
+        if (_protocolFee > MAX_PROTOCOL_FEE) revert MaxProtocolFeeExceeded();
+
+        protocolFee = _protocolFee;
+
+        emit UpdateProtocolFee(_protocolFee);
     }
 
     /* ----------------------------- INTERNAL FUNCTION -------------------------------- */

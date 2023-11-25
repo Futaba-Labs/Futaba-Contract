@@ -1,10 +1,10 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ContractReceipt } from "ethers";
+import { BigNumber, ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
 import { Gateway, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
-import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
+import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI, GAS_DATA } from "./utils/constants";
 import { getSlots } from "./utils/helper";
 import { ethers, upgrades } from "hardhat";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
@@ -13,6 +13,10 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 
 describe("Gateway", async function () {
+  const oracleFee = parseEther("0.1")
+  const protocolFee = parseEther("0.1")
+  const gasData = GAS_DATA
+
   let gateway: Gateway,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
@@ -28,7 +32,7 @@ describe("Gateway", async function () {
     [owner, otherSigner] = await ethers.getSigners()
 
     const Gateway = await ethers.getContractFactory("Gateway")
-    const g = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
+    const g = await upgrades.deployProxy(Gateway, [1, protocolFee], { initializer: 'initialize', kind: 'uups' });
     await g.deployed()
     gateway = g as Gateway
 
@@ -54,8 +58,12 @@ describe("Gateway", async function () {
     oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
 
+    const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
+    const aggregatorV3Mock = await AggregatorV3Mock.deploy(8, "Gateway Test", 1, oracleFee)
+    await aggregatorV3Mock.deployed()
+
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address)
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
     await chainlinkLightClient.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
@@ -78,20 +86,29 @@ describe("Gateway", async function () {
 
   it("deploy()", async function () {
     const Gateway = await ethers.getContractFactory("Gateway")
-    const newGateway = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
+    const newGateway = await upgrades.deployProxy(Gateway, [1, protocolFee], { initializer: 'initialize', kind: 'uups' });
     await newGateway.deployed()
     expect(await newGateway.getNonce()).to.be.equal(1)
   })
 
   it("upgrade()", async function () {
     const Gateway = await ethers.getContractFactory("Gateway")
-    const newGateway = await upgrades.deployProxy(Gateway, [2], { initializer: 'initialize', kind: 'uups' });
+    const newGateway = await upgrades.deployProxy(Gateway, [2, protocolFee], { initializer: 'initialize', kind: 'uups' });
     await newGateway.deployed()
     expect(await newGateway.getNonce()).to.be.equal(2)
 
     await upgrades.upgradeProxy(newGateway, Gateway);
 
     expect(await newGateway.getNonce()).to.be.equal(2)
+  })
+
+  it("estimateFee() - invalid light client", async function () {
+    const slots = getSlots()
+    const queries: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.estimateFee(ZERO_ADDRESS, queries)).to.be.reverted
   })
 
   it("query() - light client address is zero", async function () {
@@ -161,7 +178,9 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
+
+    const fee = await gateway.estimateFee(lightClient, QueryRequests)
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
   it("query() - invalid chainId", async function () {
@@ -175,7 +194,9 @@ describe("Gateway", async function () {
       { dstChainId: 0, to: src, height: HEIGTH, slot: slots[0] },
       { dstChainId: 0, to: src, height: HEIGTH, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
+
+    const fee = await gateway.estimateFee(lightClient, QueryRequests)
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
   })
 
   it("query() - invalid height", async function () {
@@ -189,7 +210,9 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: src, height: 0, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: src, height: 0, slot: slots[1] }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
+
+    const fee = await gateway.estimateFee(lightClient, QueryRequests)
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
   })
 
   it("query() - invalid slot", async function () {
@@ -205,7 +228,22 @@ describe("Gateway", async function () {
         dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: emptySlot
       }
     ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputEmptyBytes32")
+    const fee = await gateway.estimateFee(lightClient, QueryRequests)
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })).to.be.revertedWithCustomError(gateway, "InvalidInputEmptyBytes32")
+  })
+
+  it("query() - invalid fee", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = ethers.utils.toUtf8Bytes("")
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message, { value: ethers.utils.parseEther("0.001") })).to.be.revertedWithCustomError(gateway, "InvalidFee")
   })
 
   describe("When using Chainlink Functions", async function () {
@@ -220,7 +258,8 @@ describe("Gateway", async function () {
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
         { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
       ]
-      let tx = await gateway.query(QueryRequests, lightClient, callBack, message)
+      const fee = await gateway.estimateFee(lightClient, QueryRequests)
+      let tx = await gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })
       const resTx: ContractReceipt = await tx.wait()
       const events = resTx.events
 
@@ -266,7 +305,8 @@ describe("Gateway", async function () {
       const nonce = await gateway.getNonce()
       const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
 
-      let tx = gateway.query(queries, lightClient, callBack, message)
+      const fee = await gateway.estimateFee(lightClient, queries)
+      let tx = gateway.query(queries, lightClient, callBack, message, { value: fee })
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
 
       const oracle = await chainlinkLightClient.getOracle()
@@ -308,7 +348,8 @@ describe("Gateway", async function () {
       const nonce = await gateway.getNonce()
       const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
 
-      let tx = gateway.query(queries, lightClient, callBack, emptyMessage)
+      const fee = await gateway.estimateFee(lightClient, queries)
+      let tx = gateway.query(queries, lightClient, callBack, emptyMessage, { value: fee })
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, ethers.utils.hexlify(emptyMessage).toLowerCase(), lightClient, callBack);
 
       const oracle = await chainlinkLightClient.getOracle()
@@ -345,8 +386,8 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] },
       { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }
     ]
-    const amount = ethers.utils.parseEther("10")
-    const tx = await gateway.query(QueryRequests, lightClient, callBack, message, { value: amount })
+    const fee = await gateway.estimateFee(lightClient, QueryRequests)
+    const tx = await gateway.query(QueryRequests, lightClient, callBack, message, { value: fee })
     const resTx: ContractReceipt = await tx.wait()
     const events = resTx.events
     let queryId = ""
@@ -354,7 +395,7 @@ describe("Gateway", async function () {
       queryId = events[0].args?.queryId
     }
 
-    return { queryId, amount }
+    return { queryId, fee }
   }
 
   it("estimateFee()", async function () {
@@ -363,13 +404,16 @@ describe("Gateway", async function () {
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
     ]
-    expect(await gateway.estimateFee(chainlinkLightClient.address, queries)).to.be.equal(0)
+
+    // calc fee
+    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee).add(protocolFee)
+    expect(await gateway.estimateFee(chainlinkLightClient.address, queries)).to.be.equal(fee)
   })
 
   it("withdraw() - onlyOwner", async function () {
-    const { amount } = await requestQueryWithChainlinkNode()
+    const { fee } = await requestQueryWithChainlinkNode()
     const balance = await gateway.provider.getBalance(gateway.address)
-    expect(balance).to.be.equal(amount)
+    expect(balance).to.be.equal(fee)
 
     await expect(gateway.connect(otherSigner).withdraw()).to.be.revertedWith("Ownable: caller is not the owner")
 

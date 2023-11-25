@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { ChainlinkLightClientMock, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
 import { ethers } from "hardhat"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, BytesLike } from "ethers/lib/utils"
-import { JOB_ID, SAMPLE_RESPONSE_FOR_NODE, ZERO_ADDRESS } from "./utils/constants"
+import { GAS_DATA, JOB_ID, SAMPLE_RESPONSE_FOR_NODE, ZERO_ADDRESS } from "./utils/constants"
 import { expect } from "chai"
 
 // @dev oracleTestMock is a contract without modifier of fulfill()
@@ -11,6 +11,8 @@ let chainlinkLightClientMock: ChainlinkLightClientMock,
   linkToken: LinkTokenMock,
   operator: Operator,
   owner: SignerWithAddress
+
+const oracleFee = parseEther("0.1")
 
 before(async function () {
   [owner] = await ethers.getSigners()
@@ -28,8 +30,12 @@ before(async function () {
   oracleTestMock = await OracleTestMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
   await oracleTestMock.deployed()
 
+  const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
+  const aggregatorV3Mock = await AggregatorV3Mock.deploy(8, "Gateway Test", 1, oracleFee)
+  await aggregatorV3Mock.deployed()
+
   const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
-  chainlinkLightClientMock = await ChainlinkLightClient.deploy(oracleTestMock.address)
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy(oracleTestMock.address, aggregatorV3Mock.address, GAS_DATA.gasLimit, GAS_DATA.gasPrice, GAS_DATA.gasPerQuery)
   await chainlinkLightClientMock.deployed()
 
   let tx = await oracleTestMock.setClient(chainlinkLightClientMock.address)

@@ -5,7 +5,7 @@ import { BigNumber, ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
 import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
-import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
+import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, GREATER_THAN_32BYTES_PROOF, GAS_DATA } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
 import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper";
 import { ethers } from "hardhat";
@@ -16,6 +16,9 @@ interface QueryParam {
 }
 // Test when Gelato process is skipped
 describe("GatewayMockTest", async function () {
+  const oracleFee = parseEther("0.1")
+  const gasData = GAS_DATA
+
   let gatewayMock: GatewayMock,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
@@ -51,8 +54,12 @@ describe("GatewayMockTest", async function () {
     oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
 
+    const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
+    const aggregatorV3Mock = await AggregatorV3Mock.deploy(8, "Gateway Test", 1, oracleFee)
+    await aggregatorV3Mock.deployed()
+
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy(gatewayMock.address, oracleMock.address)
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gatewayMock.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
     await chainlinkLightClient.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
@@ -187,19 +194,6 @@ describe("GatewayMockTest", async function () {
   })
 
   describe("When using Chainlink Node Operator", async function () {
-    it("receiveQuery() - invalid fee", async function () {
-      const slots = getSlots()
-      const src = SRC_GOERLI
-
-      const queries = [{ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] }, { dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] }]
-
-      const callBack = receiverMock.address
-      const lightClient = lcMock.address
-      const message = MESSAGE
-
-      await expect(gatewayMock.query(queries, lightClient, callBack, message)).to.be.revertedWithCustomError(gatewayMock, "InvalidFee")
-    })
-
     it("receiveQuery() - invalid query id", async function () {
       const queryId = await requestQueryWithChainlinkNode()
       const invalidQueryId = hexZeroPad(ZERO_ADDRESS, 32)

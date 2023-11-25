@@ -25,6 +25,9 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     // nonce for query id
     uint64 public nonce;
 
+    // Protocol fee
+    uint256 public protocolFee;
+
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
 
@@ -82,6 +85,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
 
     constructor() {
         nonce = 1;
+        protocolFee = 0.1 ether;
     }
 
     /**
@@ -108,10 +112,6 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         }
 
         require(callBack != address(0), "Futaba: Invalid callback contract");
-
-        if (msg.value < estimateFee(lightClient, queries)) {
-            revert InvalidFee();
-        }
 
         bytes memory encodedPayload = abi.encode(
             callBack,
@@ -208,7 +208,12 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        return 10000;
+        uint256 verificationFee = ILightClient(lightClient).estimateFee(
+            queries
+        );
+        // Total fee is the sum of protocol fee and verification fee
+        uint256 totalFee = protocolFee + verificationFee;
+        return totalFee;
     }
 
     /**

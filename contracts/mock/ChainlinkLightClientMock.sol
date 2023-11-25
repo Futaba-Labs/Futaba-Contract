@@ -7,9 +7,9 @@ import "../interfaces/IExternalAdapter.sol";
 import "../lib/TrieProofs.sol";
 import "../lib/RLPReader.sol";
 import "../lib/EthereumDecoder.sol";
-
 import "../QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
  * @title Chainlink LightClient
@@ -19,7 +19,7 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 contract ChainlinkLightClientMock is
     ILightClient,
     IChainlinkLightClient,
-    Ownable2Step
+    Ownable
 {
     /* ----------------------------- Libraries -------------------------------- */
 
@@ -41,6 +41,12 @@ contract ChainlinkLightClientMock is
 
     // Contract to execute request to chainlink
     address public oracle;
+
+    // Chainlink data feed contract address
+    address public chainlinkDataFeed;
+
+    // Gas data
+    GasData public gasData;
 
     /* ----------------------------- Structure -------------------------------- */
 
@@ -78,6 +84,12 @@ contract ChainlinkLightClientMock is
         bytes32 root;
         bytes32 path;
         bytes proof;
+    }
+
+    struct GasData {
+        uint256 gasLimit;
+        uint256 gasPrice;
+        uint256 gasPerQuery;
     }
 
     /* ----------------------------- Events -------------------------------- */
@@ -118,6 +130,20 @@ contract ChainlinkLightClientMock is
      */
     event RemoveWhitelist(address[] addresses);
 
+    /**
+     * @notice The event that is emit when Chainlink data feed contract address is updated
+     * @param chainlinkDataFeed Chainlink data feed contract address
+     */
+    event SetChainlinkDataFeed(address chainlinkDataFeed);
+
+    /**
+     * @notice The event that is emit when gas data is updated
+     * @param gasLimit Gas limit
+     * @param gasPrice Gas price
+     * @param gasPerQuery Gas per query
+     */
+    event SetGasData(uint256 gasLimit, uint256 gasPrice, uint256 gasPerQuery);
+
     /* ----------------------------- Errors -------------------------------- */
 
     /**
@@ -130,14 +156,36 @@ contract ChainlinkLightClientMock is
      */
     error ZeroAddressNotAllowed();
 
+    /**
+     * @notice Error if the number of queries exceeds the limit
+     */
+    error TooManyQueries();
+
+    /**
+     * @notice Error if input value is zero
+     */
+    error ZeroValueNotAllowed();
+
     /* ----------------------------- Constructor -------------------------------- */
 
     /**
      * @notice Constructor that sets LightClient information
-     * @param _oracle Chainlink contract address
+     * @param _oracle The address of the Chainlink contract
+     * @param _chainlinkDataFeed The address of the Chainlink data feed contract
+     * @param _gasLimit Gas limit
+     * @param _gasPrice Gas price
+     * @param _gasPerQuery Gas per query
      */
-    constructor(address _oracle) {
+    constructor(
+        address _oracle,
+        address _chainlinkDataFeed,
+        uint256 _gasLimit,
+        uint256 _gasPrice,
+        uint256 _gasPerQuery
+    ) {
         setOracle(_oracle);
+        setChainlinkDataFeed(_chainlinkDataFeed);
+        setGasData(_gasLimit, _gasPrice, _gasPerQuery);
     }
 
     /* ----------------------------- External Functions -------------------------------- */
@@ -271,7 +319,20 @@ contract ChainlinkLightClientMock is
     function estimateFee(
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256) {
-        return 0;
+        uint256 queryFee = ((gasData.gasPerQuery * queries.length) +
+            gasData.gasLimit) * gasData.gasPrice; // Gas fee
+
+        // Oracle fee calculation
+        // Assuming Chainlink's data feed contract is already deployed and its address is stored in a state variable named `chainlinkDataFeed`
+        // Also assuming that the `getLatestPrice` function of the Chainlink data feed contract returns the latest LINK/Native Token rate
+        (, int answer, , , ) = AggregatorV3Interface(chainlinkDataFeed)
+            .latestRoundData();
+        uint256 oracleFee = uint256(answer);
+
+        // Total verification fee is the sum of relayer fee and oracle fee
+        uint256 totalFee = queryFee + oracleFee;
+
+        return totalFee;
     }
 
     /**
@@ -305,6 +366,29 @@ contract ChainlinkLightClientMock is
 
     function getOracle() public view returns (address) {
         return oracle;
+    }
+
+    function setChainlinkDataFeed(address _chainlinkDataFeed) public onlyOwner {
+        if (_chainlinkDataFeed == address(0)) revert ZeroAddressNotAllowed();
+        chainlinkDataFeed = _chainlinkDataFeed;
+
+        emit SetChainlinkDataFeed(_chainlinkDataFeed);
+    }
+
+    function getChainlinkDataFeed() public view returns (address) {
+        return chainlinkDataFeed;
+    }
+
+    function setGasData(
+        uint256 _gasLimit,
+        uint256 _gasPrice,
+        uint256 _gasPerQuery
+    ) public onlyOwner {
+        if (_gasLimit == 0 || _gasPrice == 0 || _gasPerQuery == 0)
+            revert ZeroValueNotAllowed();
+        gasData = GasData(_gasLimit, _gasPrice, _gasPerQuery);
+
+        emit SetGasData(_gasLimit, _gasPrice, _gasPerQuery);
     }
 
     /* ----------------------------- Internal Functions -------------------------------- */

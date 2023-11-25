@@ -1,19 +1,21 @@
-import { ChainlinkLightClient, ChainlinkLightClientMock, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
+import { AggregatorV3Mock, ChainlinkLightClient, ChainlinkLightClientMock, LinkTokenMock, Operator, OracleTestMock } from "../typechain-types"
 import { ethers, upgrades } from "hardhat"
 import { Gateway, QueryType } from "../typechain-types/contracts/Gateway"
-import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
+import { ACCOUNT_PROOF, DSTCHAINID, DSTCHAINID_GOERLI, GAS_DATA, HEIGTH, HEIGTH_GOERLI, JOB_ID, SRC, STORAGE_PROOF, ZERO_ADDRESS, ZERO_VALUE_STORAGE_PROOF } from "./utils/constants"
 import { getSlots, updateHeaderForNode } from "./utils/helper"
 import { expect } from "chai"
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { defaultAbiCoder } from "@ethersproject/abi"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
+import { BigNumber } from "ethers/lib/ethers"
 
 describe("ChainlinkLightClient", async function () {
   let gateway: Gateway,
     chainlinkLightClient: ChainlinkLightClient,
     chainlinkLightClientMock: ChainlinkLightClientMock,
     oracleMock: OracleTestMock,
+    aggregatorV3Mock: AggregatorV3Mock,
     linkToken: LinkTokenMock,
     operator: Operator,
     owner: SignerWithAddress,
@@ -24,11 +26,15 @@ describe("ChainlinkLightClient", async function () {
     { dstChainId: DSTCHAINID, height: HEIGTH_GOERLI, root: ethers.utils.formatBytes32String("0x12345") },
   ]
 
+  const oracleFee = parseEther("0.1")
+  const protocolFee = parseEther("0.1")
+  const gasData = GAS_DATA
+
 
   before(async function () {
     [owner, ...otherSingners] = await ethers.getSigners()
     const Gateway = await ethers.getContractFactory("Gateway")
-    const g = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
+    const g = await upgrades.deployProxy(Gateway, [1, protocolFee], { initializer: 'initialize', kind: 'uups' });
     await g.deployed()
     gateway = g as Gateway
 
@@ -46,12 +52,16 @@ describe("ChainlinkLightClient", async function () {
     oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
 
+    const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
+    aggregatorV3Mock = await AggregatorV3Mock.deploy(8, "Gateway Test", 1, oracleFee)
+    await aggregatorV3Mock.deployed()
+
     const ChainlinkLightClientMock = await ethers.getContractFactory("ChainlinkLightClientMock")
-    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(oracleMock.address)
+    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
     await chainlinkLightClientMock.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address)
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
     await chainlinkLightClient.deployed()
 
     let tx = await oracleMock.setClient(chainlinkLightClient.address)
@@ -62,16 +72,37 @@ describe("ChainlinkLightClient", async function () {
 
   it("constructor() - oracle zero address", async function () {
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    await expect(ChainlinkLightClient.deploy(gateway.address, ethers.constants.AddressZero)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+    await expect(ChainlinkLightClient.deploy(gateway.address, ethers.constants.AddressZero, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
   })
+
   it("constructor() - gateway zero address", async function () {
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    await expect(ChainlinkLightClient.deploy(ethers.constants.AddressZero, oracleMock.address)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+    await expect(ChainlinkLightClient.deploy(ethers.constants.AddressZero, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+
+  it("constructor() - aggregator zero address", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(gateway.address, oracleMock.address, ethers.constants.AddressZero, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+
+  it("constructor() - gasLimit zero", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, 0, gasData.gasPrice, gasData.gasPerQuery)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroValueNotAllowed")
+  })
+
+  it("constructor() - gasPrice zero", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, 0, gasData.gasPerQuery)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroValueNotAllowed")
+  })
+
+  it("constructor() - gasPerQuery zero", async function () {
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    await expect(ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, 0)).to.be.revertedWithCustomError(ChainlinkLightClient, "ZeroValueNotAllowed")
   })
 
   it("constructor()", async function () {
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    const newChainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address);
+    const newChainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery);
     await newChainlinkLightClient.deployed()
     expect(await newChainlinkLightClient.GATEWAY()).to.equal(gateway.address)
   })
@@ -270,6 +301,18 @@ describe("ChainlinkLightClient", async function () {
   it("getOracle()", async function () {
     expect(await chainlinkLightClientMock.getOracle()).to.equal(oracleMock.address)
   })
+
+  it("estimateFee() - too queries", async function () {
+    const slots = getSlots()
+
+    const queries: QueryType.QueryRequestStruct[] = []
+    for (let i = 0; i < 11; i++) {
+      queries.push({ dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] })
+    }
+
+    await expect(chainlinkLightClient.estimateFee(queries)).to.be.revertedWithCustomError(chainlinkLightClient, "TooManyQueries")
+  })
+
   it("estimateFee()", async function () {
     const slots = getSlots()
 
@@ -277,6 +320,9 @@ describe("ChainlinkLightClient", async function () {
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
       { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
     ]
-    expect(await chainlinkLightClient.estimateFee(queries)).to.equal(0)
+
+    // calculate fee
+    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee)
+    expect(await chainlinkLightClient.estimateFee(queries)).to.equal(fee)
   })
 })
