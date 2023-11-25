@@ -2,8 +2,16 @@ import { task, types } from "hardhat/config";
 import DEPLOYMENT from "../constants/deployments.json"
 import ORACLE from "../constants/oracle.json"
 import fs from 'fs';
+import { parseEther } from "ethers/lib/utils";
+import { BigNumber } from "ethers/lib/ethers";
 
 const FILE_PATH = "./constants/deployments.json"
+const protocolFee = "0.001";
+const gasData = {
+  gasLimit: "1000000",
+  gasPrice: "10000000000", // 10 gwei
+  gasPerQuery: "21000"
+}
 
 task("TASK_SETUP_CONTRACT", "Setup all contract")
   .addParam<boolean>("gateway", "Deploy gateway contract", false, types.boolean)
@@ -26,14 +34,15 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
       deployments = JSON.parse(data.toString());
 
       if (isGatewayDepolyed) {
-        gateway = await hre.run("TASK_DEPLOY_GATEWAY", { verify: false })
+        gateway = await hre.run("TASK_DEPLOY_GATEWAY", { fee: protocolFee, verify: false })
       } else {
         gateway = deployments[hre.network.name as keyof typeof DEPLOYMENT].gateway;
         console.log("Already deployed Gateway Contract:", gateway)
       }
 
       if (isClientDepolyed) {
-        client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, verify: false })
+        const feed = ORACLE[hre.network.name as keyof typeof ORACLE].feed;
+        client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, oracle: gateway, feed, gaslimit: gasData.gasLimit, gasprice: gasData.gasPrice, gasperquery: gasData.gasPerQuery, verify: false })
       } else {
         client = deployments[hre.network.name as keyof typeof DEPLOYMENT]["light_client"];
         console.log("Already deployed LightClient Contract:", client)
