@@ -5,9 +5,7 @@ import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
 import "./interfaces/IExternalAdapter.sol";
-import "./interfaces/ILightClient.sol";
 import "./interfaces/IChainlinkLightClient.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Chainlink Oracle contract

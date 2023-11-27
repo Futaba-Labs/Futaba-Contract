@@ -5,16 +5,12 @@ import "./interfaces/ILightClient.sol";
 import "./interfaces/IReceiver.sol";
 import "./QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-
-import "hardhat/console.sol";
 
 /**
  * @title Gateway contract
@@ -31,8 +27,6 @@ contract Gateway is
     Ownable2StepUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    using Address for address payable;
-
     /* ----------------------------- Public Storage -------------------------------- */
 
     bytes4 private constant _ILight_Client_Id = 0xaba23c56;

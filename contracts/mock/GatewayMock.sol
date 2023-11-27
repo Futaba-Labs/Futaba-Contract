@@ -6,13 +6,8 @@ import "../interfaces/ILightClient.sol";
 import "../interfaces/IReceiver.sol";
 import "../QueryType.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Gateway Mock contract
@@ -20,8 +15,6 @@ import "hardhat/console.sol";
  * @notice NOT AUDITED
  */
 contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
-    using Address for address payable;
-
     // nonce for query id
     uint64 public nonce;
 
