@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity 0.8.19;
 
 import "../QueryType.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.19;
 
 import "../interfaces/IOracle.sol";
 import "../interfaces/IChainlinkLightClient.sol";

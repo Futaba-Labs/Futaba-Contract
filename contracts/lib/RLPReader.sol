@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity ^0.8.9;
+pragma solidity 0.8.19;
 
 /*
  * @author Hamdi Allam hamdi.allam97@gmail.com
