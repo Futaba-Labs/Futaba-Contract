@@ -267,9 +267,22 @@ describe("ChainlinkLightClient", async function () {
     ])
   })
 
+  it("setOracle() - zero address", async function () {
+    expect(chainlinkLightClient.setOracle(ethers.constants.AddressZero)).to.be.revertedWithCustomError(chainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+
+  it("setOracle() - onlyOwner", async function () {
+    expect(chainlinkLightClientMock.connect(otherSingners[0]).setOracle(oracleMock.address)).to.be.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("setOracle()", async function () {
+    expect(chainlinkLightClient.setOracle(oracleMock.address)).to.emit(chainlinkLightClient, "SetOracle").withArgs(oracleMock.address)
+  })
+
   it("getOracle()", async function () {
     expect(await chainlinkLightClientMock.getOracle()).to.equal(oracleMock.address)
   })
+
   it("estimateFee()", async function () {
     const slots = getSlots()
 

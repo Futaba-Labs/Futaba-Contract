@@ -106,16 +106,28 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     );
 
     /**
-     * @notice The event that is emit when added to whitelist
-     * @param addresses Added addresses
+     * @notice The event that is emitted when the oracle address is updated
+     * @param oracle The new oracle address
      */
-    event AddWhitelist(address[] addresses);
+    event SetOracle(address oracle);
 
     /**
-     * @notice The event that is emit when removed from whitelist
-     * @param addresses Removed addresses
+     * @notice The event that is emitted when the gateway address is updated
+     * @param gateway The new gateway address
      */
-    event RemoveWhitelist(address[] addresses);
+    event SetGateway(address gateway);
+
+    /**
+     * @notice The event that is emitted when the state root is approved
+     * @param chainId Destination chain id
+     * @param height Block height
+     * @param root State root
+     */
+    event ApprovedStateRoot(
+        uint256 indexed chainId,
+        uint256 indexed height,
+        bytes32 root
+    );
 
     /* ----------------------------- Errors -------------------------------- */
 
@@ -140,6 +152,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
         GATEWAY = _gateway;
         setOracle(_oracle);
+
+        emit SetGateway(_gateway);
     }
 
     /* ----------------------------- External Functions -------------------------------- */
@@ -254,6 +268,12 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                     root == response.root,
                     "Futaba: updateHeader - different trie roots"
                 );
+
+                emit ApprovedStateRoot(
+                    response.dstChainId,
+                    response.height,
+                    response.root
+                );
             } else {
                 approvedStateRoots[response.dstChainId][
                     response.height
@@ -305,6 +325,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     function setOracle(address _oracle) public onlyOwner {
         if (_oracle == address(0)) revert ZeroAddressNotAllowed();
         oracle = _oracle;
+
+        emit SetOracle(_oracle);
     }
 
     function getOracle() public view returns (address) {
