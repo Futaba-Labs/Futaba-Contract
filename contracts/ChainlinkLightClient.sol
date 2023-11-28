@@ -281,7 +281,9 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function updateHeader(
         QueryType.OracleResponse[] memory responses
-    ) external override onlyOracle {
+    ) external {
+        if (oracle != msg.sender) revert NotAuthorized();
+
         for (uint i; i < responses.length; i++) {
             QueryType.OracleResponse memory response = responses[i];
             bytes32 root = approvedStateRoots[response.dstChainId][
@@ -400,13 +402,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /* ----------------------------- Modifiers -------------------------------- */
-    /**
-     * @notice Modifier to check if the caller is the oracle
-     */
-    modifier onlyOracle() {
-        if (oracle != msg.sender) revert NotAuthorized();
-        _;
-    }
 
     /**
      * @notice Modifier to check if the caller is the gateway

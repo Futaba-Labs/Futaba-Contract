@@ -161,7 +161,8 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      */
     function notifyOracle(
         QueryType.OracleQuery[] memory queries
-    ) external onlyLightClient returns (bytes32 requestId) {
+    ) external returns (bytes32 requestId) {
+        if (msg.sender != lightClient) revert NotAuthorized();
         Chainlink.Request memory req = buildChainlinkRequest(
             jobId,
             address(this),
@@ -295,15 +296,5 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      */
     function getFee() public view returns (uint256) {
         return fee;
-    }
-
-    /* ----------------------------- Modifiers -------------------------------- */
-
-    /**
-     * @notice Modifier to check if the caller is the light client
-     */
-    modifier onlyLightClient() {
-        if (msg.sender != lightClient) revert NotAuthorized();
-        _;
     }
 }
