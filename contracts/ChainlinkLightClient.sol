@@ -141,6 +141,21 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     error ZeroAddressNotAllowed();
 
+    /**
+     * @notice Error if too many queries
+     */
+    error TooManyQueries();
+
+    /**
+     * @notice Error if different trie roots
+     */
+    error DifferentTrieRoots(bytes32 root);
+
+    /**
+     * @notice Error if not exist root
+     */
+    error NotExsitRoot();
+
     /* ----------------------------- Constructor -------------------------------- */
 
     /**
@@ -164,9 +179,9 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function requestQuery(
         QueryType.QueryRequest[] memory queries
-    ) external onlyGateway {
+    ) public virtual onlyGateway {
         uint256 querySize = queries.length;
-        require(querySize <= MAX_QUERY_COUNT, "Futaba: Too many queries");
+        if (querySize > MAX_QUERY_COUNT) revert TooManyQueries();
 
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             querySize
@@ -189,7 +204,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function verify(
         bytes memory message
-    ) public onlyGateway returns (bool, bytes[] memory) {
+    ) public virtual onlyGateway returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
@@ -219,10 +234,9 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                 // Storage proof verification
                 for (uint j; j < storageProofSize; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    require(
-                        storageRoot == storageProof.root,
-                        "Futaba: verify - different trie roots"
-                    );
+                    if (storageRoot != storageProof.root)
+                        revert DifferentTrieRoots(storageProof.root);
+
                     bytes32 value = getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
@@ -264,10 +278,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                 response.height
             ];
             if (root != bytes32("")) {
-                require(
-                    root == response.root,
-                    "Futaba: updateHeader - different trie roots"
-                );
+                if (root != response.root)
+                    revert DifferentTrieRoots(response.root);
 
                 emit ApprovedStateRoot(
                     response.dstChainId,
@@ -359,11 +371,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     function checkRoot(Proof[] memory proofs) internal view {
         for (uint i = 0; i < proofs.length; i++) {
             Proof memory proof = proofs[i];
-            require(
-                approvedStateRoots[proof.dstChainId][proof.height] !=
-                    bytes32(""),
-                "Futaba: verify - not exsit root"
-            );
+            if (
+                approvedStateRoots[proof.dstChainId][proof.height] ==
+                bytes32("")
+            ) revert NotExsitRoot();
         }
     }
 
@@ -372,7 +383,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @notice Modifier to check if the caller is the oracle
      */
     modifier onlyOracle() {
-        require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
+        if (oracle != msg.sender) revert NotAuthorized();
         _;
     }
 

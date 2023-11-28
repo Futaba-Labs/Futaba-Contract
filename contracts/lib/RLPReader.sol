@@ -24,7 +24,25 @@ library RLPReader {
         uint256 nextPtr; // Position of the next item in the list.
     }
 
+    /**
+     * @notice Error if there is no iteration elements
+     */
+    error NotHasNext();
+
+    /**
+     * @notice Error if item lenght is not matched
+     */
     error InvalidItemLength();
+
+    /**
+     * @notice Error if item is not a list
+     */
+    error NotList();
+
+    /**
+     * @notice Error if item overflows
+     */
+    error OverflowItem();
 
     /*
      * @dev Returns the next element in the iteration. Reverts if it has not next element.
@@ -32,7 +50,7 @@ library RLPReader {
      * @return The next element in the iteration.
      */
     function next(Iterator memory self) internal pure returns (RLPItem memory) {
-        require(hasNext(self));
+        if (!hasNext(self)) revert NotHasNext();
 
         uint256 ptr = self.nextPtr;
         uint256 itemLength = _itemLength(ptr);
@@ -75,7 +93,7 @@ library RLPReader {
     function iterator(
         RLPItem memory self
     ) internal pure returns (Iterator memory) {
-        require(isList(self));
+        if (!isList(self)) revert NotList();
 
         uint256 ptr = self.memPtr + _payloadOffset(self.memPtr);
         return Iterator(self, ptr);
@@ -115,7 +133,7 @@ library RLPReader {
     function toList(
         RLPItem memory item
     ) internal pure returns (RLPItem[] memory) {
-        require(isList(item));
+        if (!isList(item)) revert NotList();
 
         uint256 items = numItems(item);
         RLPItem[] memory result = new RLPItem[](items);
@@ -196,7 +214,7 @@ library RLPReader {
 
     // any non-zero byte except "0x80" is considered true
     function toBoolean(RLPItem memory item) internal pure returns (bool) {
-        require(item.len == 1);
+        if (item.len != 1) revert InvalidItemLength();
         uint256 result;
         uint256 memPtr = item.memPtr;
         assembly {
@@ -216,13 +234,13 @@ library RLPReader {
 
     function toAddress(RLPItem memory item) internal pure returns (address) {
         // 1 byte for the length prefix
-        require(item.len == 21);
+        if (item.len != 21) revert InvalidItemLength();
 
         return address(uint160(toUint(item)));
     }
 
     function toUint(RLPItem memory item) internal pure returns (uint256) {
-        require(item.len > 0 && item.len <= 33);
+        if (!(item.len > 0 && item.len <= 33)) revert InvalidItemLength();
 
         (uint256 memPtr, uint256 len) = payloadLocation(item);
 
@@ -242,7 +260,7 @@ library RLPReader {
     // enforces 32 byte length
     function toUintStrict(RLPItem memory item) internal pure returns (uint256) {
         // one byte prefix
-        require(item.len == 33);
+        if (item.len != 33) revert InvalidItemLength();
 
         uint256 result;
         uint256 memPtr = item.memPtr + 1;
@@ -254,7 +272,7 @@ library RLPReader {
     }
 
     function toBytes(RLPItem memory item) internal pure returns (bytes memory) {
-        require(item.len > 0);
+        if (item.len == 0) revert InvalidItemLength();
 
         (uint256 memPtr, uint256 len) = payloadLocation(item);
         bytes memory result = new bytes(len);
@@ -271,7 +289,7 @@ library RLPReader {
     function toRlpBytesHash(
         RLPItem memory item
     ) internal pure returns (bytes32 _hash) {
-        require(item.len > 0);
+        if (item.len == 0) revert InvalidItemLength();
         uint256 len = item.len;
         uint256 ptr = item.memPtr;
         assembly {
@@ -392,7 +410,7 @@ library RLPReader {
         RLPItem memory item,
         uint idx
     ) internal pure returns (RLPItem memory) {
-        require(isList(item), "RLPDecoder iterator is not a list");
+        if (!isList(item)) revert NotList();
 
         uint endPtr = item.memPtr + item.len;
 
@@ -404,7 +422,7 @@ library RLPReader {
         }
         dataLen = _itemLength(memPtr);
 
-        require(memPtr + dataLen <= endPtr, "RLP item overflow");
+        if (memPtr + dataLen > endPtr) revert OverflowItem();
         return RLPItem(dataLen, memPtr);
     }
 }

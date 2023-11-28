@@ -170,6 +170,21 @@ contract Gateway is
      */
     error CallbackOrLightClientDontSupportInterface();
 
+    /**
+     * @notice Error if too many queries
+     */
+    error TooManyQueries();
+
+    /**
+     * @notice Error if query size is zero
+     */
+    error ZeroQuery();
+
+    /**
+     * @notice Error if withdraw failed
+     */
+    error InvalidWithdraw();
+
     /* ----------------------------- INITIALIZER -------------------------------- */
 
     function initialize(uint64 _nonce) public initializer {
@@ -195,6 +210,8 @@ contract Gateway is
         address callBack,
         bytes memory message
     ) external payable nonReentrant {
+        if (queries.length == 0) revert ZeroQuery();
+
         if (callBack == address(0) || lightClient == address(0))
             revert ZeroAddress();
 
@@ -250,7 +267,7 @@ contract Gateway is
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable onlyGelatoRelayERC2771 {
+    ) external payable virtual onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -321,7 +338,8 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        require(querySize <= 100, "Futaba: Too many queries");
+        if (querySize > 100) revert TooManyQueries();
+
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
@@ -375,7 +393,7 @@ contract Gateway is
         nativeTokenAmount = 0;
 
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        require(success, "Futaba: Failed to withdraw native token");
+        if (!success) revert InvalidWithdraw();
 
         emit Withdraw(msg.sender, withdrawAmount);
     }

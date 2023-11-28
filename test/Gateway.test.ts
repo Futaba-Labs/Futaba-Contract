@@ -94,6 +94,16 @@ describe("Gateway", async function () {
     expect(await newGateway.getNonce()).to.be.equal(2)
   })
 
+  it("query() - no queries", async function () {
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = []
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroQuery")
+  })
+
   it("query() - light client address is zero", async function () {
     const slots = getSlots()
     const src = SRC

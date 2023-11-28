@@ -14,6 +14,61 @@ library TrieProofs {
     bytes32 internal constant EMPTY_TRIE_ROOT_HASH =
         0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
+    /**
+     * @notice Error if hash is empty
+     */
+    error BadEmptyProof();
+
+    /**
+     * @notice Error if first proof part is invalid
+     */
+    error BadFirstProofPart();
+
+    /**
+     * @notice Error if hash is invalid
+     */
+    error BadHash();
+
+    /**
+     * @notice Error if invalid proof
+     */
+    error UnexpectedEndOfProof();
+
+    /**
+     * @notice Error if invalid node length
+     */
+    error InvalidNodeLength();
+
+    /**
+     * @notice Error if the next path item is not empty
+     */
+    error InvalidExclusionProof();
+
+    /**
+     * @notice Error if continuing branch has depleted path
+     */
+    error ContinuingBranchDepletedPath();
+
+    /**
+     * @notice Error if invalid node
+     */
+    error InvalidNode();
+
+    /**
+     * @notice Error if invalid nibble position
+     */
+    error InvalidNibblePosition();
+
+    /**
+     * @notice Error if empty bytes array
+     */
+    error EmptyBytesArray();
+
+    /**
+     * @notice Error if skip nibbles amount too large
+     */
+    error SkipNibblesAmountTooLarge();
+
     function verify(
         bytes memory proofRLP, //storageProof
         bytes32 rootHash, // accountRoot
@@ -36,7 +91,7 @@ library TrieProofs {
 
         if (proof.length == 0) {
             // Root hash of empty tx trie
-            require(rootHash == EMPTY_TRIE_ROOT_HASH, "Bad empty proof");
+            if (rootHash != EMPTY_TRIE_ROOT_HASH) revert BadEmptyProof();
             return new bytes(0);
         }
 
@@ -47,9 +102,9 @@ library TrieProofs {
             bytes memory rlpNode = proof[i].toRlpBytes(); // TODO: optimize by not encoding and decoding?
 
             if (i == 0) {
-                require(rootHash == keccak256(rlpNode), "Bad first proof part");
+                if (rootHash != keccak256(rlpNode)) revert BadFirstProofPart();
             } else {
-                require(nextHash == keccak256(rlpNode), "Bad hash");
+                if (nextHash != keccak256(rlpNode)) revert BadHash();
             }
 
             RLPReader.RLPItem[] memory node = proof[i].toList();
@@ -78,10 +133,8 @@ library TrieProofs {
 
                 // last proof item
                 if (i == proof.length - 1) {
-                    require(
-                        pathOffset == path.length,
-                        "Unexpected end of proof (leaf)"
-                    );
+                    if (pathOffset != path.length)
+                        revert UnexpectedEndOfProof();
                     return node[1].toBytes(); // Data is the second item in a leaf node
                 } else {
                     // not last proof item
@@ -94,7 +147,7 @@ library TrieProofs {
                 }
             } else {
                 // Must be a branch node at this point
-                require(node.length == 17, "Invalid node length");
+                if (node.length != 17) revert InvalidNodeLength();
 
                 if (i == proof.length - 1) {
                     // Proof ends in a branch node, exclusion proof in most cases
@@ -105,17 +158,13 @@ library TrieProofs {
                         children = node[nodeChildren];
 
                         // Ensure that the next path item is empty, end of exclusion proof
-                        require(
-                            children.toBytes().length == 0,
-                            "Invalid exclusion proof"
-                        );
+                        if (children.toBytes().length != 0)
+                            revert InvalidExclusionProof();
                         return new bytes(0);
                     }
                 } else {
-                    require(
-                        pathOffset < path.length,
-                        "Continuing branch has depleted path"
-                    );
+                    if (pathOffset >= path.length)
+                        revert ContinuingBranchDepletedPath();
 
                     nodeChildren = extractNibble(path32, pathOffset);
                     children = node[nodeChildren];
@@ -140,7 +189,7 @@ library TrieProofs {
         RLPReader.RLPItem memory node
     ) internal pure returns (bytes32 nextHash) {
         bytes memory nextHashBytes = node.toBytes();
-        require(nextHashBytes.length == 32, "Invalid node");
+        if (nextHashBytes.length != 32) revert InvalidNode();
 
         assembly {
             nextHash := mload(add(nextHashBytes, 0x20))
@@ -154,7 +203,7 @@ library TrieProofs {
         bytes32 path,
         uint256 position
     ) internal pure returns (uint8 nibble) {
-        require(position < 64, "Invalid nibble position");
+        if (position >= 64) revert InvalidNibblePosition();
         bytes1 shifted = position == 0
             ? bytes1(path >> 4)
             : bytes1(path << ((position - 1) * 4));
@@ -166,10 +215,10 @@ library TrieProofs {
         bytes memory compact,
         uint skipNibbles
     ) internal pure returns (bytes memory nibbles) {
-        require(compact.length > 0, "Empty bytes array");
+        if (compact.length == 0) revert EmptyBytesArray();
 
         uint length = compact.length * 2;
-        require(skipNibbles <= length, "Skip nibbles amount too large");
+        if (skipNibbles > length) revert SkipNibblesAmountTooLarge();
         length -= skipNibbles;
 
         nibbles = new bytes(length);
@@ -194,7 +243,7 @@ library TrieProofs {
     function merklePatriciaCompactDecode(
         bytes memory compact
     ) internal pure returns (bytes memory nibbles) {
-        require(compact.length > 0, "Empty bytes array");
+        if (compact.length == 0) revert EmptyBytesArray();
         uint first_nibble = (uint8(compact[0]) >> 4) & 0xF;
         uint skipNibbles;
         if (first_nibble == 0) {

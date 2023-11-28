@@ -117,6 +117,16 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      */
     error InvalidInputEmptyBytes32();
 
+    /**
+     * @notice This error is emitted when the caller is not authorized
+     */
+    error NotAuthorized();
+
+    /**
+     * @notice This error is emitted when the light client is invalid
+     */
+    error InvalidLightClient();
+
     /* ----------------------------- Constructor -------------------------------- */
 
     /**
@@ -174,12 +184,12 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     function fulfill(
         bytes32 _requestId,
         bytes memory payload
-    ) public recordChainlinkFulfillment(_requestId) {
+    ) public virtual recordChainlinkFulfillment(_requestId) {
         QueryType.OracleResponse[] memory responses = abi.decode(
             payload,
             (QueryType.OracleResponse[])
         );
-        require(lightClient != address(0), "Futaba: invalid ligth client");
+        if (lightClient == address(0)) revert InvalidLightClient();
         IChainlinkLightClient(lightClient).updateHeader(responses);
     }
 
@@ -252,10 +262,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      * @notice Modifier to check if the caller is the light client
      */
     modifier onlyLightClient() {
-        require(
-            msg.sender == lightClient,
-            "Futaba: only light client can call this function"
-        );
+        if (msg.sender != lightClient) revert NotAuthorized();
         _;
     }
 }

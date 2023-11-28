@@ -47,7 +47,7 @@ describe("ChainlinkLightClient", async function () {
     await oracleMock.deployed()
 
     const ChainlinkLightClientMock = await ethers.getContractFactory("ChainlinkLightClientMock")
-    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(oracleMock.address)
+    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(gateway.address, oracleMock.address)
     await chainlinkLightClientMock.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
@@ -95,7 +95,7 @@ describe("ChainlinkLightClient", async function () {
       queryRequests.push({ dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] })
     }
 
-    await expect(chainlinkLightClientMock.requestQuery(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+    await expect(chainlinkLightClientMock.requestQuery(queryRequests)).to.be.revertedWithCustomError(chainlinkLightClient, "TooManyQueries")
   })
 
 

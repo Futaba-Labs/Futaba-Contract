@@ -72,6 +72,9 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
     error InvalidFee();
+    error TooManyQueries();
+    error ZeroQuery();
+    error InvalidWithdraw();
 
     constructor() {
         nonce = 1;
@@ -90,6 +93,8 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         address callBack,
         bytes calldata message
     ) external payable nonReentrant {
+        if (queries.length == 0) revert ZeroQuery();
+
         if (callBack == address(0) || lightClient == address(0)) {
             revert ZeroAddress();
         }
@@ -99,8 +104,6 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
                 revert ZeroAddress();
             }
         }
-
-        require(callBack != address(0), "Futaba: Invalid callback contract");
 
         if (msg.value < estimateFee(lightClient, queries)) {
             revert InvalidFee();
@@ -213,7 +216,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        require(querySize <= 100, "Futaba: Too many queries");
+        if (querySize > 100) revert TooManyQueries();
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
@@ -263,7 +266,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         nativeTokenAmount = 0;
 
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        require(success, "Futaba: Failed to withdraw native token");
+        if (!success) revert InvalidWithdraw();
 
         emit Withdraw(msg.sender, withdrawAmount);
     }

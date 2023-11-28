@@ -31,7 +31,7 @@ before(async function () {
   await chainlinkOracle.deployed()
 
   const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
-  chainlinkLightClientMock = await ChainlinkLightClient.deploy(chainlinkOracle.address)
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy(chainlinkOracle.address, chainlinkOracle.address)
   await chainlinkLightClientMock.deployed()
 
   let tx = await linkToken.mint(chainlinkOracle.address, ethers.utils.parseEther("1000"))
@@ -55,7 +55,7 @@ describe("ChainlinkOracle", async function () {
   })
 
   it("notifyOracle() - invalid light client", async function () {
-    await expect(chainlinkOracle.connect(owner).notifyOracle([])).to.be.revertedWith("Futaba: only light client can call this function")
+    await expect(chainlinkOracle.connect(owner).notifyOracle([])).to.be.revertedWithCustomError(chainlinkOracle, "NotAuthorized")
   })
 
   it("notifyOracle()", async function () {

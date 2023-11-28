@@ -1,160 +1,32 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "../interfaces/ILightClient.sol";
-import "../interfaces/IChainlinkLightClient.sol";
-import "../interfaces/IExternalAdapter.sol";
 import "../lib/TrieProofs.sol";
-import "../lib/RLPReader.sol";
-import "../lib/EthereumDecoder.sol";
-
 import "../QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "../ChainlinkLightClient.sol";
 
 /**
  * @title Chainlink LightClient
  * @notice Light Client Contract when using Chainlink Node Operator
  */
 
-contract ChainlinkLightClientMock is
-    ILightClient,
-    IChainlinkLightClient,
-    Ownable2Step
-{
-    /* ----------------------------- Libraries -------------------------------- */
-
+contract ChainlinkLightClientMock is ChainlinkLightClient {
     using TrieProofs for bytes;
-    using RLPReader for RLPReader.RLPItem;
-    using RLPReader for bytes;
 
-    /* ----------------------------- Public Storage -------------------------------- */
-
-    // Limit the number of queries
-    uint256 constant MAX_QUERY_COUNT = 10;
-
-    // chainId => height => account => storageRoot
-    mapping(uint256 => mapping(uint256 => mapping(address => bytes32)))
-        public approvedStorageRoots;
-
-    // chainId => height => stateRoot
-    mapping(uint256 => mapping(uint256 => bytes32)) public approvedStateRoots;
-
-    // Contract to execute request to chainlink
-    address public oracle;
-
-    /* ----------------------------- Structure -------------------------------- */
-
-    /**
-     * @notice Proof data
-     * @param dstChainId Destination chain id
-     * @param height Block height
-     * @param root State root
-     */
-    struct Proof {
-        uint256 dstChainId;
-        uint256 height;
-        bytes proof;
-    }
-
-    /**
-     * @notice Account proof data
-     * @param root State root
-     * @param account Target contract address
-     * @param proof Account proof in byte format
-     */
-    struct AccountProof {
-        bytes32 root;
-        address account;
-        bytes proof;
-    }
-
-    /**
-     * @notice Storage proof data
-     * @param root Storage root
-     * @param path Storage slot
-     * @param proof Storage proof in byte format
-     */
-    struct StorageProof {
-        bytes32 root;
-        bytes32 path;
-        bytes proof;
-    }
-
-    /* ----------------------------- Events -------------------------------- */
-
-    /**
-     * @notice The event that is emitted when state root is updated
-     * @param chainId Destination chain id
-     * @param height Block height
-     * @param root State root
-     */
-    event UpdateStateRoot(
-        uint256 indexed chainId,
-        uint256 indexed height,
-        bytes32 root
-    );
-
-    /**
-     * @notice The event that is emitted when a request is made to Oracle
-     * @param requestId Request id created Chainlink contract
-     * @param oracle Chainlink contract address
-     * @param queries Query data
-     */
-    event NotifyOracle(
-        bytes32 indexed requestId,
-        address indexed oracle,
-        bytes queries
-    );
-
-    /**
-     * @notice The event that is emitted when the oracle address is updated
-     * @param oracle The new oracle address
-     */
-    event SetOracle(address oracle);
-
-    /**
-     * @notice The event that is emitted when the state root is approved
-     * @param chainId Destination chain id
-     * @param height Block height
-     * @param root State root
-     */
-    event ApprovedStateRoot(
-        uint256 indexed chainId,
-        uint256 indexed height,
-        bytes32 root
-    );
-
-    /* ----------------------------- Errors -------------------------------- */
-
-    /**
-     * @notice Error if not authorized in Gateway
-     */
-    error NotAuthorized();
-
-    /**
-     * @notice Error if address is 0
-     */
-    error ZeroAddressNotAllowed();
-
-    /* ----------------------------- Constructor -------------------------------- */
-
-    /**
-     * @notice Constructor that sets LightClient information
-     * @param _oracle Chainlink contract address
-     */
-    constructor(address _oracle) {
-        setOracle(_oracle);
-    }
-
-    /* ----------------------------- External Functions -------------------------------- */
+    constructor(
+        address _gateway,
+        address _oracle
+    ) ChainlinkLightClient(_gateway, _oracle) {}
 
     /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
      * @param queries request query data
      */
-    function requestQuery(QueryType.QueryRequest[] memory queries) external {
+    function requestQuery(
+        QueryType.QueryRequest[] memory queries
+    ) public virtual override {
         uint256 querySize = queries.length;
-        require(querySize <= MAX_QUERY_COUNT, "Futaba: Too many queries");
+        if (querySize > MAX_QUERY_COUNT) revert TooManyQueries();
 
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             querySize
@@ -177,7 +49,7 @@ contract ChainlinkLightClientMock is
      */
     function verify(
         bytes memory message
-    ) public returns (bool, bytes[] memory) {
+    ) public virtual override returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
@@ -207,10 +79,9 @@ contract ChainlinkLightClientMock is
                 // Storage proof verification
                 for (uint j; j < storageProofSize; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    require(
-                        storageRoot == storageProof.root,
-                        "Futaba: verify - different trie roots"
-                    );
+                    if (storageRoot != storageProof.root)
+                        revert DifferentTrieRoots(storageProof.root);
+
                     bytes32 value = getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
@@ -241,125 +112,5 @@ contract ChainlinkLightClientMock is
             }
         }
         return (true, results);
-    }
-
-    function updateHeader(
-        QueryType.OracleResponse[] memory responses
-    ) external override onlyOracle {
-        for (uint i; i < responses.length; i++) {
-            QueryType.OracleResponse memory response = responses[i];
-            bytes32 root = approvedStateRoots[response.dstChainId][
-                response.height
-            ];
-            if (root != bytes32("")) {
-                require(
-                    root == response.root,
-                    "Futaba: updateHeader - different trie roots"
-                );
-
-                emit ApprovedStateRoot(
-                    response.dstChainId,
-                    response.height,
-                    response.root
-                );
-            } else {
-                approvedStateRoots[response.dstChainId][
-                    response.height
-                ] = response.root;
-
-                emit UpdateStateRoot(
-                    response.dstChainId,
-                    response.height,
-                    response.root
-                );
-            }
-        }
-    }
-
-    /**
-     * @notice No transaction fees charged at this time
-     * @param queries request query data
-     */
-    function estimateFee(
-        QueryType.QueryRequest[] memory queries
-    ) external view returns (uint256) {
-        return 0;
-    }
-
-    /**
-     * @notice Function to retrieve the state root stored in a specific chain and height
-     * @param chainId Chain ID
-     * @param height Block height
-     */
-    function getApprovedStateRoot(
-        uint32 chainId,
-        uint256 height
-    ) external view returns (bytes32) {
-        return approvedStateRoots[chainId][height];
-    }
-
-    /**
-     * @notice Check if the contract supports the interface
-     * @param interfaceId Interface ID
-     */
-    function supportsInterface(
-        bytes4 interfaceId
-    ) external pure returns (bool) {
-        return interfaceId == type(ILightClient).interfaceId;
-    }
-
-    /* ----------------------------- Public Functions -------------------------------- */
-
-    function setOracle(address _oracle) public onlyOwner {
-        if (_oracle == address(0)) revert ZeroAddressNotAllowed();
-        oracle = _oracle;
-        emit SetOracle(_oracle);
-    }
-
-    function getOracle() public view returns (address) {
-        return oracle;
-    }
-
-    /* ----------------------------- Internal Functions -------------------------------- */
-
-    /**
-     * @notice Validate storage proof and retrieve target data
-     * @param storageProof Storage proof for verification
-     * @return bytes32 Value of target storage
-     */
-    function getStorageValue(
-        StorageProof memory storageProof
-    ) internal pure returns (bytes32) {
-        bytes32 path = keccak256(abi.encodePacked(uint256(storageProof.path)));
-        bytes memory value = storageProof.proof.verify(storageProof.root, path);
-        if (value.length == 0) {
-            return bytes32(0);
-        } else {
-            return bytes32(value.toRlpItem().toUint());
-        }
-    }
-
-    /**
-     * @notice Check if root exists
-     * @param proofs Proofs to check
-     */
-    function checkRoot(Proof[] memory proofs) internal view {
-        for (uint i = 0; i < proofs.length; i++) {
-            Proof memory proof = proofs[i];
-            require(
-                approvedStateRoots[proof.dstChainId][proof.height] !=
-                    bytes32(""),
-                "Futaba: verify - not exsit root"
-            );
-        }
-    }
-
-    /* ----------------------------- Modifiers -------------------------------- */
-    /**
-     * @notice Modifier to check if the caller is the oracle
-     */
-    modifier onlyOracle() {
-        require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
-        _;
     }
 }

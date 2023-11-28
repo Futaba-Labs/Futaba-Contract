@@ -99,10 +99,12 @@ describe("GatewayMockTest", async function () {
     const slots = getSlots()
     const src = SRC_GOERLI
 
+
     if (queries.length === 0) {
       queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] })
       queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] })
     }
+
 
     const tx = await gatewayMock.query(queries, lightClient, callBack, message, { value: BigNumber.from(20000) })
     const resTx: ContractReceipt = await tx.wait()
@@ -318,11 +320,11 @@ describe("GatewayMockTest", async function () {
 
   it("getCache() - a specific block height", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
-
-    const { results } = await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
+    const { results } = await storeQueryResult(gatewayMock, { queries: queryRequests, proof: MULTI_VALUE_PROOF.proof })
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
+
   it("getCache() - latest block height", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
     for (const queryRequest of queryRequests) {
@@ -332,15 +334,17 @@ describe("GatewayMockTest", async function () {
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
+
   it("getCache() - too many queries", async function () {
     let queryRequests: QueryType.QueryRequestStruct[] = []
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 101; i++) {
       queryRequests = [...queryRequests, MULTI_VALUE_PROOF.queries[0], MULTI_VALUE_PROOF.queries[1]]
     }
     await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
 
-    expect(await gatewayMock.getCache(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+    expect(gatewayMock.getCache(queryRequests)).to.be.revertedWithCustomError(gatewayMock, "TooManyQueries")
   })
+
   it("getCache() - zero value", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
     await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
