@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.7.6;
 import {Operator} from "@chainlink/contracts/src/v0.7/Operator.sol";
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.19;
 
 // slightly modified https://github.com/bakaoh/solidity-rlp-encode/blob/59f7ed4f747bdc7b95b6f9748304b8c8c8967a0f/contracts/RLPEncode.sol
