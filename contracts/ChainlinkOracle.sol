@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
-import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
-
-import "./interfaces/IExternalAdapter.sol";
-import "./interfaces/IChainlinkLightClient.sol";
+import {ChainlinkClient, Chainlink} from "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
+import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+import {IExternalAdapter} from "./interfaces/IExternalAdapter.sol";
+import {IChainlinkLightClient} from "./interfaces/IChainlinkLightClient.sol";
+import {QueryType} from "./QueryType.sol";
 
 /**
  * @title Chainlink Oracle contract

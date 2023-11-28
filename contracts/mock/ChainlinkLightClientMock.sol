@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "../lib/TrieProofs.sol";
-import "../QueryType.sol";
-import "../ChainlinkLightClient.sol";
+import {TrieProofs} from "../lib/TrieProofs.sol";
+import {QueryType} from "../QueryType.sol";
+import {ChainlinkLightClient} from "../ChainlinkLightClient.sol";
+import {IExternalAdapter} from "../interfaces/IExternalAdapter.sol";
+import {EthereumDecoder} from "../lib/EthereumDecoder.sol";
 
 /**
  * @title Chainlink LightClient

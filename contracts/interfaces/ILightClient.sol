@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "../QueryType.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {QueryType} from "../QueryType.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Light client interface

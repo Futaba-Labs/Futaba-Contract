@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "./interfaces/ILightClient.sol";
-import "./interfaces/IChainlinkLightClient.sol";
-import "./interfaces/IExternalAdapter.sol";
-import "./lib/TrieProofs.sol";
-import "./lib/RLPReader.sol";
-import "./lib/EthereumDecoder.sol";
-
-import "./QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {ILightClient} from "./interfaces/ILightClient.sol";
+import {IChainlinkLightClient} from "./interfaces/IChainlinkLightClient.sol";
+import {IExternalAdapter} from "./interfaces/IExternalAdapter.sol";
+import {TrieProofs} from "./lib/TrieProofs.sol";
+import {RLPReader} from "./lib/RLPReader.sol";
+import {EthereumDecoder} from "./lib/EthereumDecoder.sol";
+import {QueryType} from "./QueryType.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title Chainlink LightClient

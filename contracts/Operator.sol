@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.7.6;
-import "@chainlink/contracts/src/v0.7/Operator.sol";
+import {Operator} from "@chainlink/contracts/src/v0.7/Operator.sol";
 
 /**
  * @title Operator

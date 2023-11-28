@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "../interfaces/IChainlinkLightClient.sol";
-import "../ChainlinkOracle.sol";
+import {IChainlinkLightClient} from "../interfaces/IChainlinkLightClient.sol";
+import {ChainlinkOracle} from "../ChainlinkOracle.sol";
+import {QueryType} from "../QueryType.sol";
 
 /**
  * @title Chainlink Oracle Mock contract

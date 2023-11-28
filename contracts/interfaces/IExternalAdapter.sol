@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "../QueryType.sol";
+import {QueryType} from "../QueryType.sol";
 
 /**
  * @title ExternalAdapter interface

@@ -7,7 +7,7 @@ pragma solidity 0.8.19;
  * @notice Forked from: https://github.com/lorenzb/proveth/blob/master/onchain/ProvethVerifier.sol
  */
 
-import "./RLPReader.sol";
+import {RLPReader} from "./RLPReader.sol";
 
 library TrieProofs {
     using RLPReader for RLPReader.RLPItem;

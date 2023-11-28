@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "./RLPEncode.sol";
-import "./RLPReader.sol";
+import {RLPEncode} from "./RLPEncode.sol";
+import {RLPReader} from "./RLPReader.sol";
 
 library EthereumDecoder {
     using RLPReader for RLPReader.RLPItem;
