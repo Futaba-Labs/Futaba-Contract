@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "../QueryType.sol";
 
-import "hardhat/console.sol";
-
 contract FunctionsLightClientMock is
     ILightClient,
     IChainlinkLightClient,

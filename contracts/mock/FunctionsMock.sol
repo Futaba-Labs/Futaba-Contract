@@ -4,7 +4,6 @@ pragma solidity 0.8.19;
 import "../interfaces/IOracle.sol";
 import "../interfaces/IChainlinkLightClient.sol";
 import "../QueryType.sol";
-import "hardhat/console.sol";
 
 contract FunctionsMock is IOracle {
     IChainlinkLightClient public lightClient;
