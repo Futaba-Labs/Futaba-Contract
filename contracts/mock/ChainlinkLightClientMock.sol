@@ -26,7 +26,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
      */
     function requestQuery(
         QueryType.QueryRequest[] memory queries
-    ) public virtual override {
+    ) external override {
         uint256 querySize = queries.length;
         if (querySize > MAX_QUERY_COUNT) revert TooManyQueries();
 
@@ -51,7 +51,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
      */
     function verify(
         bytes memory message
-    ) public virtual override returns (bool, bytes[] memory) {
+    ) external override returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);

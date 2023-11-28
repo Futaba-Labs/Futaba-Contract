@@ -180,7 +180,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function requestQuery(
         QueryType.QueryRequest[] memory queries
-    ) public virtual onlyGateway {
+    ) external virtual onlyGateway {
         uint256 querySize = queries.length;
         if (querySize > MAX_QUERY_COUNT) revert TooManyQueries();
 
@@ -209,7 +209,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      */
     function verify(
         bytes memory message
-    ) public virtual onlyGateway returns (bool, bytes[] memory) {
+    ) external virtual onlyGateway returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
@@ -337,6 +337,14 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
+     * @notice Get the oracle address
+     * @return address The address of the ChainlinkOracle contract
+     */
+    function getOracle() external view returns (address) {
+        return oracle;
+    }
+
+    /**
      * @notice Check if the contract supports the interface
      * @param interfaceId Interface ID
      * @return bool Whether the contract supports the interface
@@ -358,14 +366,6 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         oracle = _oracle;
 
         emit SetOracle(_oracle);
-    }
-
-    /**
-     * @notice Get the oracle address
-     * @return address The address of the ChainlinkOracle contract
-     */
-    function getOracle() public view returns (address) {
-        return oracle;
     }
 
     /* ----------------------------- Internal Functions -------------------------------- */

@@ -18,7 +18,10 @@ contract OracleTestMock is ChainlinkOracle {
         address _lightClient
     ) ChainlinkOracle(_tokenAddress, _jobid, _operator, _fee, _lightClient) {}
 
-    function fulfill(bytes32 _requestId, bytes memory payload) public override {
+    function fulfill(
+        bytes32 _requestId,
+        bytes memory payload
+    ) external override {
         QueryType.OracleResponse[] memory responses = abi.decode(
             payload,
             (QueryType.OracleResponse[])

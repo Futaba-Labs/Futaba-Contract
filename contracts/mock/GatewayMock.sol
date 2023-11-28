@@ -273,7 +273,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
 
     function _getQueryStatus(
         bytes32 queryId
-    ) internal view returns (QueryStatus) {
+    ) private view returns (QueryStatus) {
         return queryStore[queryId].status;
     }
 }

@@ -176,8 +176,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         return requestId;
     }
 
-    /* ----------------------------- Public Functions -------------------------------- */
-
     /**
      * @notice Callback function executed by the Node Operator to return data
      * @dev This function passes the data about state root received from Chainlink node to ChainlinkLightClient contract.
@@ -187,7 +185,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     function fulfill(
         bytes32 _requestId,
         bytes memory payload
-    ) public virtual recordChainlinkFulfillment(_requestId) {
+    ) external virtual recordChainlinkFulfillment(_requestId) {
         QueryType.OracleResponse[] memory responses = abi.decode(
             payload,
             (QueryType.OracleResponse[])
@@ -195,6 +193,48 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         if (lightClient == address(0)) revert InvalidLightClient();
         IChainlinkLightClient(lightClient).updateHeader(responses);
     }
+
+    /**
+     * @notice Get the address of the ChainlinkLightClient contract
+     * @return The address of the ChainlinkLightClient contract
+     */
+    function getClient() external view returns (address) {
+        return lightClient;
+    }
+
+    /**
+     * @notice Get the address of the Chainlink Token contract
+     * @return The address of the Chainlink Token contract
+     */
+    function getLinkToken() external view returns (address) {
+        return chainlinkTokenAddress();
+    }
+
+    /**
+     * @notice Get the address of the Chainlink Operator contract
+     * @return The address of the Chainlink Operator contract
+     */
+    function getOracle() external view returns (address) {
+        return chainlinkOracleAddress();
+    }
+
+    /**
+     * @notice Get the job id to be executed by Node Operator
+     * @return The job id to be executed by Node Operator
+     */
+    function getJobId() external view returns (bytes32) {
+        return jobId;
+    }
+
+    /**
+     * @notice Get the amount of LINK token paid to Node Operator
+     * @return The amount of LINK token paid to Node Operator
+     */
+    function getFee() external view returns (uint256) {
+        return fee;
+    }
+
+    /* ----------------------------- Public Functions -------------------------------- */
 
     /**
      * @notice Set the address of the ChainlinkLightClient contract
@@ -205,14 +245,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         address oldLightClient = lightClient;
         lightClient = _client;
         emit SetClient(_client, oldLightClient, block.timestamp);
-    }
-
-    /**
-     * @notice Get the address of the ChainlinkLightClient contract
-     * @return The address of the ChainlinkLightClient contract
-     */
-    function getClient() public view returns (address) {
-        return lightClient;
     }
 
     /**
@@ -228,14 +260,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     /**
-     * @notice Get the address of the Chainlink Token contract
-     * @return The address of the Chainlink Token contract
-     */
-    function getLinkToken() public view returns (address) {
-        return chainlinkTokenAddress();
-    }
-
-    /**
      * @notice Set the address of the Chainlink Operator contract
      * @param _oracle The address of the Chainlink Operator contract
      */
@@ -245,14 +269,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         setChainlinkOracle(_oracle);
 
         emit SetOracle(_oracle, oldOracle, block.timestamp);
-    }
-
-    /**
-     * @notice Get the address of the Chainlink Operator contract
-     * @return The address of the Chainlink Operator contract
-     */
-    function getOracle() public view returns (address) {
-        return chainlinkOracleAddress();
     }
 
     /**
@@ -268,14 +284,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     }
 
     /**
-     * @notice Get the job id to be executed by Node Operator
-     * @return The job id to be executed by Node Operator
-     */
-    function getJobId() public view returns (bytes32) {
-        return jobId;
-    }
-
-    /**
      * @notice Set the amount of LINK token paid to Node Operator
      * @param _fee The amount of LINK token paid to Node Operator
      */
@@ -288,13 +296,5 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         fee = _fee;
 
         emit SetFee(_fee, oldFee, block.timestamp);
-    }
-
-    /**
-     * @notice Get the amount of LINK token paid to Node Operator
-     * @return The amount of LINK token paid to Node Operator
-     */
-    function getFee() public view returns (uint256) {
-        return fee;
     }
 }

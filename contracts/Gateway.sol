@@ -27,7 +27,7 @@ contract Gateway is
     Ownable2StepUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    /* ----------------------------- Public Storage -------------------------------- */
+    /* ----------------------------- Public Storages -------------------------------- */
 
     // Interface id of ILightClient
     bytes4 private constant _ILight_Client_Id = 0xaba23c56;
@@ -61,7 +61,7 @@ contract Gateway is
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
 
-    /* ----------------------------- EVENTS -------------------------------- */
+    /* ----------------------------- Events -------------------------------- */
 
     /**
      * @notice This event is emitted when a query is sent
@@ -123,7 +123,7 @@ contract Gateway is
      */
     event Withdraw(address indexed to, uint256 amount);
 
-    /* ----------------------------- ERRORS -------------------------------- */
+    /* ----------------------------- Errors -------------------------------- */
 
     /**
      * @notice Error if input is invalid
@@ -187,7 +187,7 @@ contract Gateway is
      */
     error InvalidWithdraw();
 
-    /* ----------------------------- INITIALIZER -------------------------------- */
+    /* ----------------------------- Initializer -------------------------------- */
 
     /**
      * @notice Initialize the contract
@@ -205,7 +205,7 @@ contract Gateway is
      */
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
-    /* ----------------------------- EXTERNAL FUNCTION -------------------------------- */
+    /* ----------------------------- External Functions -------------------------------- */
 
     /**
      * @notice This contract is an endpoint for executing query
@@ -423,7 +423,7 @@ contract Gateway is
         return nonce;
     }
 
-    /* ----------------------------- PUBLIC FUNCTION -------------------------------- */
+    /* ----------------------------- Public Functions -------------------------------- */
 
     /**
      * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
@@ -440,7 +440,7 @@ contract Gateway is
         return 0;
     }
 
-    /* ----------------------------- INTERNAL FUNCTION -------------------------------- */
+    /* ----------------------------- Private Functions -------------------------------- */
 
     /**
      * @notice Get the status of the query
@@ -449,7 +449,7 @@ contract Gateway is
      */
     function _getQueryStatus(
         bytes32 queryId
-    ) internal view returns (QueryStatus) {
+    ) private view returns (QueryStatus) {
         return queryStore[queryId].status;
     }
 
@@ -462,7 +462,7 @@ contract Gateway is
     function _checkSupportedInterface(
         address callBackAddress,
         address lightClient
-    ) internal view returns (bool) {
+    ) private view returns (bool) {
         return
             IERC165(callBackAddress).supportsInterface(_IReceiver_Id) &&
             IERC165(lightClient).supportsInterface(_ILight_Client_Id);
