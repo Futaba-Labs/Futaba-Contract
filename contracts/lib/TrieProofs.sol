@@ -83,7 +83,6 @@ library TrieProofs {
         bytes32 rootHash, // accountRoot
         bytes32 path32 // keccak256(abi.encodePacked(slot));
     ) internal pure returns (bytes memory value) {
-        // TODO: Optimize by using word-size paths instead of byte arrays
         bytes memory path = new bytes(32);
         assembly {
             mstore(add(path, 0x20), path32)
@@ -108,7 +107,7 @@ library TrieProofs {
             // We use the fact that an rlp encoded list consists of some
             // encoding of its length plus the concatenation of its
             // *rlp-encoded* items.
-            bytes memory rlpNode = proof[i].toRlpBytes(); // TODO: optimize by not encoding and decoding?
+            bytes memory rlpNode = proof[i].toRlpBytes();
 
             if (i == 0) {
                 if (rootHash != keccak256(rlpNode)) revert BadFirstProofPart();
@@ -121,7 +120,6 @@ library TrieProofs {
             // Extension or Leaf node
             if (node.length == 2) {
                 /*
-                // TODO: wtf is a divergent node
                 // proof claims divergent extension or leaf
                 if (proofIndexes[i] == 0xff) {
                     require(i >= proof.length - 1); // divergent node must come last in proof

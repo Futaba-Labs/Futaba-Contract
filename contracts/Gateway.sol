@@ -18,7 +18,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
  * @notice NOT AUDITED
  */
 
-// #TODO: Add @notice & @param description for each: FUNCTION + EVENT + ERROR declaration
 contract Gateway is
     IGateway,
     GelatoRelayContextERC2771,
