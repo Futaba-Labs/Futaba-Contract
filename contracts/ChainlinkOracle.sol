@@ -155,6 +155,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     /**
      * @notice Send request to Chainlink Node
+     * @dev This function uses ChainlinkClient to make a request to the off-chain Chainlink node to get the state root.
      * @param queries Query data formatted for Chainlink
      * @return requestId Request id issued by chainlink
      */
@@ -178,6 +179,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     /**
      * @notice Callback function executed by the Node Operator to return data
+     * @dev This function passes the data about state root received from Chainlink node to ChainlinkLightClient contract.
      * @param _requestId Id of the request
      * @param payload Data returned by the Node Operator
      */
@@ -193,7 +195,10 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         IChainlinkLightClient(lightClient).updateHeader(responses);
     }
 
-    /** set and get configuration */
+    /**
+     * @notice Set the address of the ChainlinkLightClient contract
+     * @param _client The address of the ChainlinkLightClient contract
+     */
     function setClient(address _client) public onlyOwner {
         if (_client == address(0)) revert InvalidInputZeroAddress();
         address oldLightClient = lightClient;
@@ -201,10 +206,18 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         emit SetClient(_client, oldLightClient, block.timestamp);
     }
 
+    /**
+     * @notice Get the address of the ChainlinkLightClient contract
+     * @return The address of the ChainlinkLightClient contract
+     */
     function getClient() public view returns (address) {
         return lightClient;
     }
 
+    /**
+     * @notice Set the address of the Chainlink Token contract
+     * @param _tokenAddress The address of the Chainlink Token contract
+     */
     function setLinkToken(address _tokenAddress) public onlyOwner {
         if (_tokenAddress == address(0)) revert InvalidInputZeroAddress();
         address oldTokenAddress = chainlinkTokenAddress();
@@ -213,10 +226,18 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         emit SetLinkToken(_tokenAddress, oldTokenAddress, block.timestamp);
     }
 
+    /**
+     * @notice Get the address of the Chainlink Token contract
+     * @return The address of the Chainlink Token contract
+     */
     function getLinkToken() public view returns (address) {
         return chainlinkTokenAddress();
     }
 
+    /**
+     * @notice Set the address of the Chainlink Operator contract
+     * @param _oracle The address of the Chainlink Operator contract
+     */
     function setOracle(address _oracle) public onlyOwner {
         if (_oracle == address(0)) revert InvalidInputZeroAddress();
         address oldOracle = chainlinkOracleAddress();
@@ -225,10 +246,18 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         emit SetOracle(_oracle, oldOracle, block.timestamp);
     }
 
+    /**
+     * @notice Get the address of the Chainlink Operator contract
+     * @return The address of the Chainlink Operator contract
+     */
     function getOracle() public view returns (address) {
         return chainlinkOracleAddress();
     }
 
+    /**
+     * @notice Set the job id to be executed by Node Operator
+     * @param _jobId The job id to be executed by Node Operator
+     */
     function setJobId(bytes32 _jobId) public onlyOwner {
         if (_jobId == bytes32(0)) revert InvalidInputEmptyBytes32();
         bytes32 oldJobId = jobId;
@@ -237,10 +266,18 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         emit SetJobId(_jobId, oldJobId, block.timestamp);
     }
 
+    /**
+     * @notice Get the job id to be executed by Node Operator
+     * @return The job id to be executed by Node Operator
+     */
     function getJobId() public view returns (bytes32) {
         return jobId;
     }
 
+    /**
+     * @notice Set the amount of LINK token paid to Node Operator
+     * @param _fee The amount of LINK token paid to Node Operator
+     */
     function setFee(uint256 _fee) public onlyOwner {
         if (_fee == 0) revert NodeOperatorFeeCannotBeZero();
         if (_fee < MIN_NODE_OPERATOR_FEE) revert MinNodeOperatorFee();
@@ -252,6 +289,10 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         emit SetFee(_fee, oldFee, block.timestamp);
     }
 
+    /**
+     * @notice Get the amount of LINK token paid to Node Operator
+     * @return The amount of LINK token paid to Node Operator
+     */
     function getFee() public view returns (uint256) {
         return fee;
     }

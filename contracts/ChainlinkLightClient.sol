@@ -161,6 +161,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /**
      * @notice Constructor that sets LightClient information
      * @param _gateway The address of the Gateway contract
+     * @param _oracle The address of the Chainlink contract
      */
     constructor(address _gateway, address _oracle) {
         if (_gateway == address(0)) revert ZeroAddressNotAllowed();
@@ -174,7 +175,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /* ----------------------------- External Functions -------------------------------- */
 
     /**
-     * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
+     * @notice This function can be requested from the Gateway contract to add arbitrary processing.
+     * @dev Requesting External Adapter to get State root for ChainlinkOracle contract.
      * @param queries request query data
      */
     function requestQuery(
@@ -200,7 +202,11 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
     /**
      * @notice This function is for validation upon receipt of query(mock verifies account proof and storage proof)
+     * @dev Receive proof data from Gateway contract and verify account proof and storage proof.
+     * Returns the results of the verification to the Gateway contract.
      * @param message response query data
+     * @return bool Whether the verification was successful
+     * @return bytes[] The result of the verification
      */
     function verify(
         bytes memory message
@@ -269,6 +275,11 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         return (true, results);
     }
 
+    /**
+     * @notice This function is for updating the state root
+     * @dev Update the state root with the response from the ChainlinkOracle contract.
+     * @param responses Data about state root returned from Chainlink's external adapter
+     */
     function updateHeader(
         QueryType.OracleResponse[] memory responses
     ) external override onlyOracle {
@@ -303,6 +314,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /**
      * @notice No transaction fees charged at this time
      * @param queries request query data
+     * @return uint256 Transaction fee
      */
     function estimateFee(
         QueryType.QueryRequest[] memory queries
@@ -314,6 +326,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @notice Function to retrieve the state root stored in a specific chain and height
      * @param chainId Chain ID
      * @param height Block height
+     * @return bytes32 Approved state root
      */
     function getApprovedStateRoot(
         uint32 chainId,
@@ -325,6 +338,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /**
      * @notice Check if the contract supports the interface
      * @param interfaceId Interface ID
+     * @return bool Whether the contract supports the interface
      */
     function supportsInterface(
         bytes4 interfaceId
@@ -334,6 +348,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
     /* ----------------------------- Public Functions -------------------------------- */
 
+    /**
+     * @notice Set the oracle address
+     * @param _oracle The address of the ChainlinkOracle contract
+     */
     function setOracle(address _oracle) public onlyOwner {
         if (_oracle == address(0)) revert ZeroAddressNotAllowed();
         oracle = _oracle;
@@ -341,6 +359,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         emit SetOracle(_oracle);
     }
 
+    /**
+     * @notice Get the oracle address
+     * @return address The address of the ChainlinkOracle contract
+     */
     function getOracle() public view returns (address) {
         return oracle;
     }
@@ -387,6 +409,9 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         _;
     }
 
+    /**
+     * @notice Modifier to check if the caller is the gateway
+     */
     modifier onlyGateway() {
         if (GATEWAY != msg.sender) revert NotAuthorized();
         _;

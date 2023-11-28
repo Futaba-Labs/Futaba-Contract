@@ -6,16 +6,9 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Receiver interface
- * @notice This interface is for the user to receive the results of the query
- * @notice NOT AUDITED
+ * @dev This interface is for the user to receive the results of the query
  */
 interface IReceiver is IERC165 {
-    /**
-     * @notice This function is used to receive the results of the query
-     * @param results The results of the query
-     * @param queries The query data
-     * @param message Data to be used in the callback sent at the time of the request
-     */
     function receiveQuery(
         bytes32 queryId,
         bytes[] memory results,

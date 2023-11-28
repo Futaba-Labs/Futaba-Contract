@@ -29,7 +29,9 @@ contract Gateway is
 {
     /* ----------------------------- Public Storage -------------------------------- */
 
+    // Interface id of ILightClient
     bytes4 private constant _ILight_Client_Id = 0xaba23c56;
+    // Interface id of IReceiver
     bytes4 private constant _IReceiver_Id = 0xb1f586d1;
 
     // nonce for query id
@@ -187,18 +189,27 @@ contract Gateway is
 
     /* ----------------------------- INITIALIZER -------------------------------- */
 
+    /**
+     * @notice Initialize the contract
+     * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
+     * @param _nonce nonce for query id
+     */
     function initialize(uint64 _nonce) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
         nonce = _nonce;
     }
 
+    /**
+     * @dev Override to support UUPS.
+     */
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /* ----------------------------- EXTERNAL FUNCTION -------------------------------- */
 
     /**
      * @notice This contract is an endpoint for executing query
+     * @dev This function stores query information and emit events to be communicated off-chain.
      * @param queries query data
      * @param lightClient The light client contract address
      * @param callBack The callback contract address
@@ -263,6 +274,8 @@ contract Gateway is
 
     /**
      * @notice This function is an endpoint for receiving query
+     * @dev This function is executed from Relayer, validates the Proof against the result of the Query,
+     * and returns it to the user's construct.
      * @param response query response data
      */
     function receiveQuery(
@@ -331,6 +344,7 @@ contract Gateway is
 
     /**
      * @notice Accessing past query results
+     * @dev This function returns the past query data stored in the queryStore.
      * @param queries Query request
      * @return bytes[] Query results
      */
@@ -377,7 +391,9 @@ contract Gateway is
 
     /**
      * @notice Get the status of the query
+     * @dev This function returns the status of the query.
      * @param queryId Unique id to access query state
+     * @return QueryStatus The status of the query
      */
     function getQueryStatus(
         bytes32 queryId
@@ -387,6 +403,7 @@ contract Gateway is
 
     /**
      * @notice Withdraw native token from the contract
+     * @dev This function withdraws native token from the contract.
      */
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = nativeTokenAmount;
@@ -410,8 +427,11 @@ contract Gateway is
 
     /**
      * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
+     * @dev This function returns the estimated fee
+     * (In the future, we will also access the LightClient contract to obtain unique fees).
      * @param lightClient The light client contract address
      * @param queries query data
+     * @return uint256 The estimated fee
      */
     function estimateFee(
         address lightClient,
@@ -425,6 +445,7 @@ contract Gateway is
     /**
      * @notice Get the status of the query
      * @param queryId Unique id to access query state
+     * @return QueryStatus The status of the query
      */
     function _getQueryStatus(
         bytes32 queryId
@@ -432,6 +453,12 @@ contract Gateway is
         return queryStore[queryId].status;
     }
 
+    /**
+     * @notice Check whether the target Callback and LightClient addresses support the respective Interfaces.
+     * @param callBackAddress The callback contract address
+     * @param lightClient The light client contract address
+     * @return bool Whether the target Callback and LightClient addresses support the respective Interfaces
+     */
     function _checkSupportedInterface(
         address callBackAddress,
         address lightClient

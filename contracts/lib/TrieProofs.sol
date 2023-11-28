@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-/*
-Forked from: https://github.com/lorenzb/proveth/blob/master/onchain/ProvethVerifier.sol
-*/
+/*`
+ * @title TrieProofs
+ * @dev Library for verifing Merkle Patricia Proofs
+ * @notice Forked from: https://github.com/lorenzb/proveth/blob/master/onchain/ProvethVerifier.sol
+ */
 
 import "./RLPReader.sol";
 
@@ -69,6 +71,13 @@ library TrieProofs {
      */
     error SkipNibblesAmountTooLarge();
 
+    /**
+     * @notice Verifies a Merkle Patricia proof.
+     * @param proofRLP RLP encoded Merkle Patricia proof
+     * @param rootHash Root hash of the Merkle Patricia proof
+     * @param path32 Path to the value in the Merkle Patricia proof
+     * @return value The value in the Merkle Patricia proof
+     */
     function verify(
         bytes memory proofRLP, //storageProof
         bytes32 rootHash, // accountRoot
@@ -196,8 +205,11 @@ library TrieProofs {
         }
     }
 
-    /*
-     * Nibble is extracted as the least significant nibble in the returned byte
+    /**
+     * @dev Nibble is extracted as the least significant nibble in the returned byte
+     * @param path keccak256(abi.encodePacked(slot))
+     * @param position position of the nibble
+     * @return nibble
      */
     function extractNibble(
         bytes32 path,
@@ -211,6 +223,12 @@ library TrieProofs {
         return uint8(bytes1(shifted & f));
     }
 
+    /**
+     * @dev Decodes a compact-encoded nibble array.
+     * @param compact The compact-encoded nibble array.
+     * @param skipNibbles The number of nibbles to skip.
+     * @return nibbles The decoded nibble array.
+     */
     function decodeNibbles(
         bytes memory compact,
         uint skipNibbles
@@ -240,6 +258,11 @@ library TrieProofs {
         assert(nibblesLength == nibbles.length);
     }
 
+    /**
+     * @dev Decodes a compact-encoded nibble array.
+     * @param compact The compact-encoded nibble array.
+     * @return nibbles The decoded nibble array.
+     */
     function merklePatriciaCompactDecode(
         bytes memory compact
     ) internal pure returns (bytes memory nibbles) {
@@ -261,6 +284,13 @@ library TrieProofs {
         return decodeNibbles(compact, skipNibbles);
     }
 
+    /**
+     * @dev Returns the length of the shared prefix of two byte arrays.
+     * @param xsOffset The offset of the first byte array.
+     * @param xs The first byte array.
+     * @param ys The second byte array.
+     * @return length The length of the shared prefix.
+     */
     function sharedPrefixLength(
         uint xsOffset,
         bytes memory xs,
