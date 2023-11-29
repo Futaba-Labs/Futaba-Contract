@@ -398,7 +398,7 @@ contract Gateway is
     function getQueryStatus(
         bytes32 queryId
     ) external view returns (QueryStatus) {
-        return _getQueryStatus(queryId);
+        return queryStore[queryId].status;
     }
 
     /**
@@ -441,17 +441,6 @@ contract Gateway is
     }
 
     /* ----------------------------- Private Functions -------------------------------- */
-
-    /**
-     * @notice Get the status of the query
-     * @param queryId Unique id to access query state
-     * @return QueryStatus The status of the query
-     */
-    function _getQueryStatus(
-        bytes32 queryId
-    ) private view returns (QueryStatus) {
-        return queryStore[queryId].status;
-    }
 
     /**
      * @notice Check whether the target Callback and LightClient addresses support the respective Interfaces.
