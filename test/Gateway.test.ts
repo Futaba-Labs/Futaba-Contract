@@ -274,7 +274,7 @@ describe("Gateway", async function () {
 
       // calculate queryId
       const nonce = await gateway.getNonce()
-      const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
+      const queryId = keccak256(solidityPack(["bytes", "uint256"], [encodedQuery, nonce]))
 
       let tx = gateway.query(queries, lightClient, callBack, message)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
@@ -316,7 +316,7 @@ describe("Gateway", async function () {
 
       // calculate queryId
       const nonce = await gateway.getNonce()
-      const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
+      const queryId = keccak256(solidityPack(["bytes", "uint256"], [encodedQuery, nonce]))
 
       let tx = gateway.query(queries, lightClient, callBack, emptyMessage)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, ethers.utils.hexlify(emptyMessage).toLowerCase(), lightClient, callBack);

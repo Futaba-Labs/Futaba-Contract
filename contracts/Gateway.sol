@@ -34,7 +34,7 @@ contract Gateway is
     bytes4 private constant _IReceiver_Id = 0xb1f586d1;
 
     // nonce for query id
-    uint64 private nonce;
+    uint256 private nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -193,7 +193,7 @@ contract Gateway is
      * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
      * @param _nonce nonce for query id
      */
-    function initialize(uint64 _nonce) public initializer {
+    function initialize(uint256 _nonce) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
         nonce = _nonce;
@@ -419,7 +419,7 @@ contract Gateway is
      * @notice Get the current nonce
      * @return nonce
      */
-    function getNonce() external view returns (uint64) {
+    function getNonce() external view returns (uint256) {
         return nonce;
     }
 

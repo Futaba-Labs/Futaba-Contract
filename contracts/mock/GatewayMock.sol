@@ -16,7 +16,7 @@ import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/
  */
 contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     // nonce for query id
-    uint64 public nonce;
+    uint256 public nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
