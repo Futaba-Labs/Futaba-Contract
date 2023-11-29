@@ -28,7 +28,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
         QueryType.QueryRequest[] memory queries
     ) external override {
         uint256 querySize = queries.length;
-        if (querySize > MAX_QUERY_COUNT) revert TooManyQueries();
+        if (querySize > _MAX_QUERY_COUNT) revert TooManyQueries();
 
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             querySize
@@ -56,8 +56,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
 
-        // Check if there is a corresponding state root for each query
-        checkRoot(proofs);
+        _checkRoot(proofs);
 
         for (uint i; i < proofSize; i++) {
             Proof memory proof = proofs[i];
@@ -84,7 +83,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
                     if (storageRoot != storageProof.root)
                         revert DifferentTrieRoots(storageProof.root);
 
-                    bytes32 value = getStorageValue(storageProof);
+                    bytes32 value = _getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;
@@ -107,7 +106,7 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
                 bytes memory result;
                 for (uint j; j < storageProofSize; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    bytes32 value = getStorageValue(storageProof);
+                    bytes32 value = _getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;

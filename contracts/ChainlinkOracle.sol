@@ -18,13 +18,13 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     /* ----------------------------- Public Storage -------------------------------- */
 
-    uint256 private constant MIN_NODE_OPERATOR_FEE = 0.001 ether;
-    uint256 private constant MAX_NODE_OPERATOR_FEE = 1 ether;
+    uint256 private constant _MIN_NODE_OPERATOR_FEE = 0.001 ether;
+    uint256 private constant _MAX_NODE_OPERATOR_FEE = 1 ether;
 
     // Jobid to be executed by Node Operator
-    bytes32 private jobId;
+    bytes32 private _jobId;
     // Amount of LINK token paid to Node Operator
-    uint256 private fee;
+    uint256 private _fee;
     // Chainlink Mock address
     address public lightClient;
 
@@ -164,14 +164,14 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
     ) external returns (bytes32 requestId) {
         if (msg.sender != lightClient) revert NotAuthorized();
         Chainlink.Request memory req = buildChainlinkRequest(
-            jobId,
+            _jobId,
             address(this),
             this.fulfill.selector
         );
         bytes memory encodedQueries = abi.encode(queries);
         Chainlink.addBytes(req, "queries", encodedQueries);
 
-        requestId = sendChainlinkRequest(req, fee);
+        requestId = sendChainlinkRequest(req, _fee);
 
         return requestId;
     }
@@ -222,7 +222,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      * @return The job id to be executed by Node Operator
      */
     function getJobId() external view returns (bytes32) {
-        return jobId;
+        return _jobId;
     }
 
     /**
@@ -230,7 +230,7 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      * @return The amount of LINK token paid to Node Operator
      */
     function getFee() external view returns (uint256) {
-        return fee;
+        return _fee;
     }
 
     /* ----------------------------- Public Functions -------------------------------- */
@@ -272,27 +272,27 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
 
     /**
      * @notice Set the job id to be executed by Node Operator
-     * @param _jobId The job id to be executed by Node Operator
+     * @param jobId_ The job id to be executed by Node Operator
      */
-    function setJobId(bytes32 _jobId) public onlyOwner {
-        if (_jobId == bytes32(0)) revert InvalidInputEmptyBytes32();
-        bytes32 oldJobId = jobId;
-        jobId = _jobId;
+    function setJobId(bytes32 jobId_) public onlyOwner {
+        if (jobId_ == bytes32(0)) revert InvalidInputEmptyBytes32();
+        bytes32 oldJobId = _jobId;
+        _jobId = jobId_;
 
         emit SetJobId(_jobId, oldJobId, block.timestamp);
     }
 
     /**
      * @notice Set the amount of LINK token paid to Node Operator
-     * @param _fee The amount of LINK token paid to Node Operator
+     * @param fee_ The amount of LINK token paid to Node Operator
      */
-    function setFee(uint256 _fee) public onlyOwner {
-        if (_fee == 0) revert NodeOperatorFeeCannotBeZero();
-        if (_fee < MIN_NODE_OPERATOR_FEE) revert MinNodeOperatorFee();
-        if (_fee > MAX_NODE_OPERATOR_FEE) revert MaxNodeOperatorFee();
+    function setFee(uint256 fee_) public onlyOwner {
+        if (fee_ == 0) revert NodeOperatorFeeCannotBeZero();
+        if (fee_ < _MIN_NODE_OPERATOR_FEE) revert MinNodeOperatorFee();
+        if (fee_ > _MAX_NODE_OPERATOR_FEE) revert MaxNodeOperatorFee();
 
-        uint256 oldFee = fee;
-        fee = _fee;
+        uint256 oldFee = _fee;
+        _fee = fee_;
 
         emit SetFee(_fee, oldFee, block.timestamp);
     }

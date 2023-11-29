@@ -33,8 +33,10 @@ contract Gateway is
     // Interface id of IReceiver
     bytes4 private constant _IReceiver_Id = 0xb1f586d1;
 
+    uint256 private constant _MAX_QUERY_COUNT = 100;
+
     // nonce for query id
-    uint256 private nonce;
+    uint256 private _nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -191,12 +193,12 @@ contract Gateway is
     /**
      * @notice Initialize the contract
      * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
-     * @param _nonce nonce for query id
+     * @param nonce_ nonce for query id
      */
-    function initialize(uint256 _nonce) public initializer {
+    function initialize(uint256 nonce_) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
-        nonce = _nonce;
+        _nonce = nonce_;
     }
 
     /**
@@ -255,10 +257,10 @@ contract Gateway is
             message,
             lightClient
         );
-        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, nonce));
+        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, _nonce));
 
         queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
-        nonce++;
+        ++_nonce;
 
         nativeTokenAmount = nativeTokenAmount + msg.value;
 
@@ -352,7 +354,7 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        if (querySize > 100) revert TooManyQueries();
+        if (querySize > _MAX_QUERY_COUNT) revert TooManyQueries();
 
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
@@ -420,7 +422,7 @@ contract Gateway is
      * @return nonce
      */
     function getNonce() external view returns (uint256) {
-        return nonce;
+        return _nonce;
     }
 
     /* ----------------------------- Public Functions -------------------------------- */
