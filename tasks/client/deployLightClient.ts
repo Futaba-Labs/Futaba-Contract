@@ -5,16 +5,16 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
   .addParam<boolean>("verify", "Verify gateway contract", false, types.boolean)
   .setAction(
     async (taskArgs, hre): Promise<string> => {
-      const LigthClient = await hre.ethers.getContractFactory("ChainlinkLightClient");
+      const LightClient = await hre.ethers.getContractFactory("ChainlinkLightClient");
       const gateway = taskArgs.gateway;
       if (!gateway) {
         throw new Error("Gateway contract address is required");
       }
 
       console.log(`Deploying light client...`);
-      const client = await LigthClient.deploy(gateway);
+      const client = await LightClient.deploy(gateway);
       await client.deployed();
-      console.log(`LigthClient deployed to: `, client.address);
+      console.log(`LightClient deployed to: `, client.address);
       if (taskArgs.verify) {
         await hre.run("TASK_VERIFY", {
           address: client.address

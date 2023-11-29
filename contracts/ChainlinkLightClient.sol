@@ -153,7 +153,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /**
      * @notice Error if not exist root
      */
-    error NotExsitRoot();
+    error NotExistRoot();
 
     /* ----------------------------- Constructor -------------------------------- */
 
@@ -397,7 +397,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
             if (
                 approvedStateRoots[proof.dstChainId][proof.height] ==
                 bytes32("")
-            ) revert NotExsitRoot();
+            ) revert NotExistRoot();
         }
     }
 
