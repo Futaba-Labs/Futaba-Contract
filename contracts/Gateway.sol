@@ -220,7 +220,8 @@ contract Gateway is
         address callBack,
         bytes memory message
     ) external payable nonReentrant {
-        if (queries.length == 0) revert ZeroQuery();
+        uint256 querySize = queries.length;
+        if (querySize == 0) revert ZeroQuery();
 
         if (callBack == address(0) || lightClient == address(0))
             revert ZeroAddress();
@@ -237,7 +238,7 @@ contract Gateway is
             message = bytes("");
         }
 
-        for (uint i; i < queries.length; i++) {
+        for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
             if (q.to == address(0)) revert ZeroAddress();
             if (q.dstChainId == 0) revert InvalidInputZeroValue();
@@ -311,9 +312,9 @@ contract Gateway is
             queryStore[queryId].status = QueryStatus.Failed;
             revert InvalidProof(queryId);
         }
-
         // save results
-        for (uint i; i < results.length; i++) {
+        uint256 resultSize = results.length;
+        for (uint i; i < resultSize; i++) {
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
             bytes32 storeKey = keccak256(

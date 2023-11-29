@@ -153,7 +153,8 @@ library RLPEncode {
             }
         }
         bytes memory res = new bytes(32 - i);
-        for (uint j; j < res.length; j++) {
+        uint256 resLength = res.length;
+        for (uint j; j < resLength; j++) {
             res[j] = b[i++];
         }
         return res;
@@ -200,7 +201,8 @@ library RLPEncode {
 
         uint len;
         uint i;
-        for (i = 0; i < _list.length; i++) {
+        uint256 listSize = _list.length;
+        for (i = 0; i < listSize; i++) {
             len += _list[i].length;
         }
 
@@ -210,7 +212,7 @@ library RLPEncode {
             flattenedPtr := add(flattened, 0x20)
         }
 
-        for (i = 0; i < _list.length; i++) {
+        for (i = 0; i < listSize; i++) {
             bytes memory item = _list[i];
 
             uint listPtr;

@@ -103,7 +103,8 @@ library TrieProofs {
             return new bytes(0);
         }
 
-        for (uint256 i; i < proof.length; i++) {
+        uint256 proofSize = proof.length;
+        for (uint256 i; i < proofSize; i++) {
             // We use the fact that an rlp encoded list consists of some
             // encoding of its length plus the concatenation of its
             // *rlp-encoded* items.
@@ -295,7 +296,9 @@ library TrieProofs {
         bytes memory ys
     ) internal pure returns (uint) {
         uint256 i;
-        for (i = 0; i + xsOffset < xs.length && i < ys.length; i++) {
+        uint256 xsSize = xs.length;
+        uint256 ysSize = ys.length;
+        for (i = 0; i + xsOffset < xsSize && i < ysSize; i++) {
             if (xs[i + xsOffset] != ys[i]) {
                 return i;
             }

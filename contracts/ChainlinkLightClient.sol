@@ -284,7 +284,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     ) external {
         if (oracle != msg.sender) revert NotAuthorized();
 
-        for (uint i; i < responses.length; i++) {
+        uint256 responseSize = responses.length;
+        for (uint i; i < responseSize; i++) {
             QueryType.OracleResponse memory response = responses[i];
             bytes32 root = approvedStateRoots[response.dstChainId][
                 response.height
@@ -392,7 +393,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @param proofs Proofs to check
      */
     function checkRoot(Proof[] memory proofs) internal view {
-        for (uint i; i < proofs.length; i++) {
+        uint256 proofSize = proofs.length;
+        for (uint i; i < proofSize; i++) {
             Proof memory proof = proofs[i];
             if (
                 approvedStateRoots[proof.dstChainId][proof.height] ==
