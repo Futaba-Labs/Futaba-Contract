@@ -94,7 +94,7 @@ library TrieProofs {
         uint8 nodeChildren;
         RLPReader.RLPItem memory children;
 
-        uint256 pathOffset = 0; // Offset of the proof
+        uint256 pathOffset; // Offset of the proof
         bytes32 nextHash; // Required hash for the next node
 
         if (proof.length == 0) {
@@ -103,7 +103,7 @@ library TrieProofs {
             return new bytes(0);
         }
 
-        for (uint256 i = 0; i < proof.length; i++) {
+        for (uint256 i; i < proof.length; i++) {
             // We use the fact that an rlp encoded list consists of some
             // encoding of its length plus the concatenation of its
             // *rlp-encoded* items.
@@ -238,7 +238,7 @@ library TrieProofs {
         length -= skipNibbles;
 
         nibbles = new bytes(length);
-        uint nibblesLength = 0;
+        uint nibblesLength;
 
         for (uint i = skipNibbles; i < skipNibbles + length; i += 1) {
             if (i % 2 == 0) {
@@ -294,7 +294,7 @@ library TrieProofs {
         bytes memory xs,
         bytes memory ys
     ) internal pure returns (uint) {
-        uint256 i = 0;
+        uint256 i;
         for (i = 0; i + xsOffset < xs.length && i < ys.length; i++) {
             if (xs[i + xsOffset] != ys[i]) {
                 return i;

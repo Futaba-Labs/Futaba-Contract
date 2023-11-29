@@ -148,7 +148,7 @@ library EthereumDecoder {
         bytes[] memory list = new bytes[](3);
         bytes[] memory topics = new bytes[](log.topics.length);
 
-        for (uint256 i = 0; i < log.topics.length; i++) {
+        for (uint256 i; i < log.topics.length; i++) {
             topics[i] = RLPEncode.encodeBytes(abi.encodePacked(log.topics[i]));
         }
 
@@ -164,7 +164,7 @@ library EthereumDecoder {
         bytes[] memory list = new bytes[](4);
 
         bytes[] memory logs = new bytes[](receipt.logs.length);
-        for (uint256 i = 0; i < receipt.logs.length; i++) {
+        for (uint256 i; i < receipt.logs.length; i++) {
             logs[i] = getLog(receipt.logs[i]);
         }
 
@@ -187,7 +187,7 @@ library EthereumDecoder {
             } else if (idx == 1) {
                 RLPReader.RLPItem[] memory list = it.next().toList();
                 log.topics = new bytes32[](list.length);
-                for (uint256 i = 0; i < list.length; i++) {
+                for (uint256 i; i < list.length; i++) {
                     bytes32 topic = bytes32(list[i].toUint());
                     log.topics[i] = topic;
                 }
@@ -210,7 +210,7 @@ library EthereumDecoder {
             else if (idx == 3) {
                 RLPReader.RLPItem[] memory list = it.next().toList();
                 receipt.logs = new Log[](list.length);
-                for (uint256 i = 0; i < list.length; i++) {
+                for (uint256 i; i < list.length; i++) {
                     receipt.logs[i] = toReceiptLog(list[i].toRlpBytes());
                 }
             } else it.next();

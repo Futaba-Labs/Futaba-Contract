@@ -145,7 +145,7 @@ library RLPReader {
 
         uint256 memPtr = item.memPtr + _payloadOffset(item.memPtr);
         uint256 dataLen;
-        for (uint256 i = 0; i < items; i++) {
+        for (uint256 i; i < items; i++) {
             dataLen = _itemLength(memPtr);
             result[i] = RLPItem(dataLen, memPtr);
             memPtr = memPtr + dataLen;
@@ -465,7 +465,7 @@ library RLPReader {
 
         uint memPtr = item.memPtr + _payloadOffset(item.memPtr);
         uint dataLen;
-        for (uint i = 0; i < idx; i++) {
+        for (uint i; i < idx; i++) {
             dataLen = _itemLength(memPtr);
             memPtr = memPtr + dataLen;
         }

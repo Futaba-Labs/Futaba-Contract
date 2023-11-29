@@ -153,7 +153,7 @@ library RLPEncode {
             }
         }
         bytes memory res = new bytes(32 - i);
-        for (uint j = 0; j < res.length; j++) {
+        for (uint j; j < res.length; j++) {
             res[j] = b[i++];
         }
         return res;

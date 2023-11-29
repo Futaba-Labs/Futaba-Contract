@@ -392,7 +392,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @param proofs Proofs to check
      */
     function checkRoot(Proof[] memory proofs) internal view {
-        for (uint i = 0; i < proofs.length; i++) {
+        for (uint i; i < proofs.length; i++) {
             Proof memory proof = proofs[i];
             if (
                 approvedStateRoots[proof.dstChainId][proof.height] ==

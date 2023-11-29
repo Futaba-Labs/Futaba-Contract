@@ -237,7 +237,7 @@ contract Gateway is
             message = bytes("");
         }
 
-        for (uint i = 0; i < queries.length; i++) {
+        for (uint i; i < queries.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             if (q.to == address(0)) revert ZeroAddress();
             if (q.dstChainId == 0) revert InvalidInputZeroValue();
@@ -313,7 +313,7 @@ contract Gateway is
         }
 
         // save results
-        for (uint i = 0; i < results.length; i++) {
+        for (uint i; i < results.length; i++) {
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
             bytes32 storeKey = keccak256(
@@ -366,7 +366,7 @@ contract Gateway is
 
             // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
-                uint256 highestHeight = 0;
+                uint256 highestHeight;
                 bytes memory result;
                 for (uint j; j < resultStoreSize; j++) {
                     if (resultStore[storeKey][j].height > highestHeight) {
