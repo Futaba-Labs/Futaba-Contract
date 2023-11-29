@@ -265,7 +265,8 @@ library RLPReader {
      * @return uint value of item.
      */
     function toUint(RLPItem memory item) internal pure returns (uint256) {
-        if (!(item.len > 0 && item.len <= 33)) revert InvalidItemLength();
+        if (item.len <= 0) revert InvalidItemLength();
+        if (item.len > 33) revert InvalidItemLength();
 
         (uint256 memPtr, uint256 len) = payloadLocation(item);
 
