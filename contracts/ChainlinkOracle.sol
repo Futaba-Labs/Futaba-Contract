@@ -190,7 +190,6 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
             payload,
             (QueryType.OracleResponse[])
         );
-        if (lightClient == address(0)) revert InvalidLightClient();
         IChainlinkLightClient(lightClient).updateHeader(responses);
     }
 
