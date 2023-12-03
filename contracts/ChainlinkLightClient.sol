@@ -8,14 +8,18 @@ import {TrieProofs} from "./lib/TrieProofs.sol";
 import {RLPReader} from "./lib/RLPReader.sol";
 import {EthereumDecoder} from "./lib/EthereumDecoder.sol";
 import {QueryType} from "./QueryType.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title Chainlink LightClient
  * @notice Light Client Contract when using Chainlink Node Operator
  */
 
-contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
+contract ChainlinkLightClient is
+    ILightClient,
+    IChainlinkLightClient,
+    Ownable2Step
+{
     /* ----------------------------- Libraries -------------------------------- */
 
     using TrieProofs for bytes;
