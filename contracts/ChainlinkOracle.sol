@@ -145,8 +145,8 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
         address _lightClient
     ) ConfirmedOwner(msg.sender) {
         setJobId(_jobid);
-        setChainlinkToken(_tokenAddress);
-        setChainlinkOracle(_operator);
+        setLinkToken(_tokenAddress);
+        setOracle(_operator);
         setFee(_fee);
         setClient(_lightClient);
     }
