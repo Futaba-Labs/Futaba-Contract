@@ -29,9 +29,9 @@ contract Gateway is
     /* ----------------------------- Public Storages -------------------------------- */
 
     // Interface id of ILightClient
-    bytes4 private constant _ILight_Client_Id = 0xaba23c56;
+    bytes4 private constant _ILIGHT_CLIENT_ID = 0xaba23c56;
     // Interface id of IReceiver
-    bytes4 private constant _IReceiver_Id = 0xb1f586d1;
+    bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
 
     uint256 private constant _MAX_QUERY_COUNT = 100;
 
@@ -455,7 +455,7 @@ contract Gateway is
         address lightClient
     ) private view returns (bool) {
         return
-            IERC165(callBackAddress).supportsInterface(_IReceiver_Id) &&
-            IERC165(lightClient).supportsInterface(_ILight_Client_Id);
+            IERC165(callBackAddress).supportsInterface(_IRECEIVER_ID) &&
+            IERC165(lightClient).supportsInterface(_ILIGHT_CLIENT_ID);
     }
 }
