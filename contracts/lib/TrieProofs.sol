@@ -298,7 +298,7 @@ library TrieProofs {
         uint256 i;
         uint256 xsSize = xs.length;
         uint256 ysSize = ys.length;
-        for (i = 0; i + xsOffset < xsSize && i < ysSize; i++) {
+        for (i; i + xsOffset < xsSize && i < ysSize; i++) {
             if (xs[i + xsOffset] != ys[i]) {
                 return i;
             }

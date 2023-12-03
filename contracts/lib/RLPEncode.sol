@@ -147,7 +147,7 @@ library RLPEncode {
             mstore(add(b, 32), _x)
         }
         uint i;
-        for (i = 0; i < 32; i++) {
+        for (i; i < 32; i++) {
             if (b[i] != 0) {
                 break;
             }
@@ -202,7 +202,7 @@ library RLPEncode {
         uint len;
         uint i;
         uint256 listSize = _list.length;
-        for (i = 0; i < listSize; i++) {
+        for (i; i < listSize; i++) {
             len += _list[i].length;
         }
 
@@ -212,7 +212,7 @@ library RLPEncode {
             flattenedPtr := add(flattened, 0x20)
         }
 
-        for (i = 0; i < listSize; i++) {
+        for (i; i < listSize; i++) {
             bytes memory item = _list[i];
 
             uint listPtr;
