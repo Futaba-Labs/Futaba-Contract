@@ -193,12 +193,18 @@ contract Gateway is
     /**
      * @notice Initialize the contract
      * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
-     * @param nonce_ nonce for query id
+     * @param nonce nonce for query id
      */
-    function initialize(uint256 nonce_) public initializer {
+
+    function initialize(uint256 nonce) public virtual initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
-        _nonce = nonce_;
+        _nonce = nonce;
+    }
+
+    ///@custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
