@@ -19,7 +19,8 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
       console.log(`LightClient deployed to: `, client.address);
       if (taskArgs.verify) {
         await hre.run("TASK_VERIFY", {
-          address: client.address
+          address: client.address,
+          arguments: [gateway, oracle]
         });
       }
       await new Promise(f => setTimeout(f, 10000))
