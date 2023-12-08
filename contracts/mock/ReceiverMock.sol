@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import {IReceiver} from "../interfaces/IReceiver.sol";
+import {IGateway} from "../interfaces/IGateway.sol";
 import {QueryType} from "../QueryType.sol";
 
 /**
@@ -16,6 +17,25 @@ contract ReceiverMock is IReceiver {
         QueryType.QueryRequest[] queries,
         bytes message
     );
+
+    address public gateway;
+
+    constructor(address _gateway) {
+        gateway = _gateway;
+    }
+
+    function sendQuery(
+        QueryType.QueryRequest[] memory queries,
+        address lightClient,
+        bytes memory message
+    ) external payable {
+        IGateway(gateway).query{value: msg.value}(
+            queries,
+            lightClient,
+            address(this), // callback address
+            message
+        );
+    }
 
     function receiveQuery(
         bytes32 queryId,

@@ -26,18 +26,19 @@ async function main() {
 
   const usdcOnGoerli = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43" // USDC on Goerli
   const linkOnOpGoerli = "0x14cd1A7b8c547bD4A2f531ba1BF11B6c4f2b96db" // LINK on Optimism Goerli
-  const callBack = "0xda94E03f3c4C757bA2f1F7a58A00d2525569C75b" // Mock Receiver
+  const callBack = "0x593983D05B6E3240A69160FEfaC44d84068e208A" // Mock Receiver
+  const receiverMock = await ethers.getContractAt("ReceiverMock", callBack)
   const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS]["light_client"]
   const message = MESSAGE
 
   const queries: QueryType.QueryRequestStruct[] = [
     {
       dstChainId: 5, to: usdcOnGoerli, height:
-        8947359, slot: slot1
+        8947370, slot: slot1
     },
     {
       dstChainId: 420, to: linkOnOpGoerli, height:
-        9844414, slot: slot2
+        9844428, slot: slot2
     },
   ]
   console.log("queries: ", JSON.stringify(queries))
@@ -48,8 +49,8 @@ async function main() {
     console.log("fee: ", fee.toString())
 
     // send transaction
-    console.log(await gateway.signer)
-    const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
+    // const tx = await gateway.query(queries, lightClient, callBack, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
+    const tx = await receiverMock.sendQuery(queries, lightClient, message, { gasLimit: 1000000, value: fee.mul(120).div(100) })
     await tx.wait()
     console.log(`The transaction is successful: ${JSON.stringify(tx)}`)
   } catch (error) {
