@@ -59,7 +59,7 @@ describe("Gateway", async function () {
     await chainlinkLightClient.deployed()
 
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
-    receiverMock = await ReceiverMock.deploy()
+    receiverMock = await ReceiverMock.deploy(gateway.address)
     await receiverMock.deployed()
 
     let tx = await lcMock.setOracle(functionMock.address)
