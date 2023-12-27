@@ -2,9 +2,11 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-gas-reporter"
-import 'solidity-coverage'
+import "@openzeppelin/hardhat-upgrades";
+import "hardhat-gas-reporter";
+import "solidity-coverage";
 import "./tasks/index";
 
 const accounts =
@@ -17,7 +19,7 @@ const config: HardhatUserConfig = {
   {
     compilers: [
       {
-        version: "0.8.17",
+        version: "0.8.19",
         settings: {
           optimizer: {
             enabled: true,

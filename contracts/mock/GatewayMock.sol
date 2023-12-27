@@ -1,18 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-import "../interfaces/IGateway.sol";
-import "../interfaces/ILightClient.sol";
-import "../interfaces/IReceiver.sol";
-import "../QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {IGateway} from "../interfaces/IGateway.sol";
+import {ILightClient} from "../interfaces/ILightClient.sol";
+import {IReceiver} from "../interfaces/IReceiver.sol";
+import {QueryType} from "../QueryType.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Gateway Mock contract
@@ -20,10 +15,8 @@ import "hardhat/console.sol";
  * @notice NOT AUDITED
  */
 contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
-    using Address for address payable;
-
     // nonce for query id
-    uint64 public nonce;
+    uint256 public nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -79,6 +72,9 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
     error InvalidStatus(QueryStatus status);
     error InvalidProof(bytes32 queryId);
     error InvalidFee();
+    error TooManyQueries();
+    error ZeroQuery();
+    error InvalidWithdraw();
 
     constructor() {
         nonce = 1;
@@ -97,6 +93,8 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         address callBack,
         bytes calldata message
     ) external payable nonReentrant {
+        if (queries.length == 0) revert ZeroQuery();
+
         if (callBack == address(0) || lightClient == address(0)) {
             revert ZeroAddress();
         }
@@ -106,8 +104,6 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
                 revert ZeroAddress();
             }
         }
-
-        require(callBack != address(0), "Futaba: Invalid callback contract");
 
         if (msg.value < estimateFee(lightClient, queries)) {
             revert InvalidFee();
@@ -220,7 +216,7 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        require(querySize <= 100, "Futaba: Too many queries");
+        if (querySize > 100) revert TooManyQueries();
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
@@ -266,17 +262,18 @@ contract GatewayMock is IGateway, Ownable, ReentrancyGuard {
      * @notice Withdraw native token from the contract
      */
     function withdraw() external onlyOwner {
-        address payable to = payable(msg.sender);
-        (bool sent, bytes memory data) = to.call{value: nativeTokenAmount}("");
-        require(sent, "Futaba: Failed to withdraw native token");
-        uint256 amount = nativeTokenAmount;
+        uint256 withdrawAmount = nativeTokenAmount;
         nativeTokenAmount = 0;
-        emit Withdraw(to, amount);
+
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        if (!success) revert InvalidWithdraw();
+
+        emit Withdraw(msg.sender, withdrawAmount);
     }
 
     function _getQueryStatus(
         bytes32 queryId
-    ) internal view returns (QueryStatus) {
+    ) private view returns (QueryStatus) {
         return queryStore[queryId].status;
     }
 }

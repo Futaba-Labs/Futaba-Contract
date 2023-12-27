@@ -3,13 +3,12 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { BigNumber, ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { GatewayMock, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, SRC, MESSAGE, DSTCHAINID, HEIGTH, SRC_GOERLI, DSTCHAINID_GOERLI, HEIGTH_GOERLI, ZERO_ADDRESS, PROOF_FOR_FUNCTIONS, SINGLE_VALUE_PROOF, MULTI_VALUE_PROOF, GREATER_THAN_32BYTES_PROOF } from "./utils/constants";
 import { deployGatewayMockFixture } from "./utils/fixture";
 import { getSlots, updateHeaderForFunctions, updateHeaderForNode } from "./utils/helper";
 import { ethers } from "hardhat";
-import { LightClientMock } from "../typechain-types/contracts/mock/LightClientMock";
 
 interface QueryParam {
   queries: QueryType.QueryRequestStruct[]
@@ -20,7 +19,7 @@ describe("GatewayMockTest", async function () {
   let gatewayMock: GatewayMock,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
-    lcMock: LightClientMock,
+    lcMock: FunctionsLightClientMock,
     oracleMock: OracleTestMock,
     chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
@@ -47,17 +46,17 @@ describe("GatewayMockTest", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy()
-    await chainlinkLightClient.deployed()
-
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
 
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gatewayMock.address, oracleMock.address)
+    await chainlinkLightClient.deployed()
+
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
-    receiverMock = await ReceiverMock.deploy()
+    receiverMock = await ReceiverMock.deploy(gatewayMock.address)
     await receiverMock.deployed()
 
     let tx = await lcMock.setOracle(functionMock.address)
@@ -67,11 +66,9 @@ describe("GatewayMockTest", async function () {
     await tx.wait()
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
-    tx = await chainlinkLightClient.setOracle(oracleMock.address)
-    await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
-    tx = await chainlinkLightClient.addToWhitelist([owner.address])
+    tx = await oracleMock.setClient(chainlinkLightClient.address)
     await tx.wait()
   });
 
@@ -102,10 +99,12 @@ describe("GatewayMockTest", async function () {
     const slots = getSlots()
     const src = SRC_GOERLI
 
+
     if (queries.length === 0) {
       queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[0] })
       queries.push({ dstChainId: DSTCHAINID_GOERLI, to: src, height: HEIGTH_GOERLI, slot: slots[1] })
     }
+
 
     const tx = await gatewayMock.query(queries, lightClient, callBack, message, { value: BigNumber.from(20000) })
     const resTx: ContractReceipt = await tx.wait()
@@ -246,7 +245,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: SINGLE_VALUE_PROOF.proof
       }
       const results = SINGLE_VALUE_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
       await updateHeaderForNode(oracleMock, ZERO_ADDRESS)
 
       await expect(gatewayMock.receiveQuery(queryResponse)).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiverError").withArgs(queryId, toUtf8Bytes("Futaba: ReceiverBadMock"))
@@ -266,7 +265,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: SINGLE_VALUE_PROOF.proof
       }
       const results = SINGLE_VALUE_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
@@ -285,7 +284,7 @@ describe("GatewayMockTest", async function () {
         queryId, proof: GREATER_THAN_32BYTES_PROOF.proof
       }
       const results = GREATER_THAN_32BYTES_PROOF.results
-      const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
+      const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[0].dstChainId, queries[0].to, queries[0].slot]))
 
       await expect(gatewayMock.receiveQuery(queryResponseForSingleProof, { gasLimit: 30000000 })).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[0].height, results[0]).to.emit(gatewayMock, "ReceiveQuery").withArgs(queryId, message.toLowerCase(), lightClient, callBack, results)
 
@@ -308,7 +307,7 @@ describe("GatewayMockTest", async function () {
       const tx = gatewayMock.receiveQuery(queryResponseForMultiQueryProofs, { gasLimit: 30000000 })
 
       for (let i = 0; i < results.length; i++) {
-        const storeKey = keccak256(solidityPack(["uint32", "address", "bytes32"], [queries[i].dstChainId, queries[i].to, queries[i].slot]))
+        const storeKey = keccak256(solidityPack(["uint256", "address", "bytes32"], [queries[i].dstChainId, queries[i].to, queries[i].slot]))
         await expect(tx).to.emit(gatewayMock, "SaveQueryData").withArgs(storeKey, queries[i].height, results[i])
       }
 
@@ -321,11 +320,11 @@ describe("GatewayMockTest", async function () {
 
   it("getCache() - a specific block height", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
-
-    const { results } = await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
+    const { results } = await storeQueryResult(gatewayMock, { queries: queryRequests, proof: MULTI_VALUE_PROOF.proof })
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
+
   it("getCache() - latest block height", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
     for (const queryRequest of queryRequests) {
@@ -335,15 +334,17 @@ describe("GatewayMockTest", async function () {
 
     expect(await gatewayMock.getCache(queryRequests)).deep.equal(results)
   })
+
   it("getCache() - too many queries", async function () {
     let queryRequests: QueryType.QueryRequestStruct[] = []
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 101; i++) {
       queryRequests = [...queryRequests, MULTI_VALUE_PROOF.queries[0], MULTI_VALUE_PROOF.queries[1]]
     }
     await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })
 
-    expect(await gatewayMock.getCache(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+    expect(gatewayMock.getCache(queryRequests)).to.be.revertedWithCustomError(gatewayMock, "TooManyQueries")
   })
+
   it("getCache() - zero value", async function () {
     const queryRequests = MULTI_VALUE_PROOF.queries
     await storeQueryResult(gatewayMock, { queries: MULTI_VALUE_PROOF.queries, proof: MULTI_VALUE_PROOF.proof })

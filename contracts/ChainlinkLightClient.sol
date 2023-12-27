@@ -1,41 +1,50 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-import "./interfaces/ILightClient.sol";
-import "./interfaces/IChainlinkLightClient.sol";
-import "./interfaces/IExternalAdapter.sol";
-import "./lib/TrieProofs.sol";
-import "./lib/RLPReader.sol";
-import "./lib/EthereumDecoder.sol";
-
-import "./QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {ILightClient} from "./interfaces/ILightClient.sol";
+import {IChainlinkLightClient} from "./interfaces/IChainlinkLightClient.sol";
+import {IExternalAdapter} from "./interfaces/IExternalAdapter.sol";
+import {TrieProofs} from "./lib/TrieProofs.sol";
+import {RLPReader} from "./lib/RLPReader.sol";
+import {EthereumDecoder} from "./lib/EthereumDecoder.sol";
+import {QueryType} from "./QueryType.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
  * @title Chainlink LightClient
  * @notice Light Client Contract when using Chainlink Node Operator
  */
 
-contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
+contract ChainlinkLightClient is
+    ILightClient,
+    IChainlinkLightClient,
+    Ownable2Step
+{
+    /* ----------------------------- Libraries -------------------------------- */
+
     using TrieProofs for bytes;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
 
+    /* ----------------------------- Public Storage -------------------------------- */
+
     // Limit the number of queries
-    uint256 constant MAX_QUERY_COUNT = 10;
+    uint256 internal constant _MAX_QUERY_COUNT = 10;
+
+    // Gateway contract address
+    address public immutable GATEWAY;
 
     // chainId => height => account => storageRoot
-    mapping(uint32 => mapping(uint256 => mapping(address => bytes32)))
+    mapping(uint256 => mapping(uint256 => mapping(address => bytes32)))
         public approvedStorageRoots;
 
     // chainId => height => stateRoot
-    mapping(uint32 => mapping(uint256 => bytes32)) public approvedStateRoots;
-
-    // wallet => isWhitelisted
-    mapping(address => bool) public whitelist;
+    mapping(uint256 => mapping(uint256 => bytes32)) public approvedStateRoots;
 
     // Contract to execute request to chainlink
     address public oracle;
+
+    /* ----------------------------- Structure -------------------------------- */
 
     /**
      * @notice Proof data
@@ -44,7 +53,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @param root State root
      */
     struct Proof {
-        uint32 dstChainId;
+        uint256 dstChainId;
         uint256 height;
         bytes proof;
     }
@@ -73,6 +82,8 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         bytes proof;
     }
 
+    /* ----------------------------- Events -------------------------------- */
+
     /**
      * @notice The event that is emitted when state root is updated
      * @param chainId Destination chain id
@@ -80,7 +91,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @param root State root
      */
     event UpdateStateRoot(
-        uint32 indexed chainId,
+        uint256 indexed chainId,
         uint256 indexed height,
         bytes32 root
     );
@@ -98,25 +109,84 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     );
 
     /**
-     * @notice The event that is emit when added to whitelist
-     * @param addresses Added addresses
+     * @notice The event that is emitted when the oracle address is updated
+     * @param oracle The new oracle address
      */
-    event AddWhitelist(address[] addresses);
+    event SetOracle(address oracle);
 
     /**
-     * @notice The event that is emit when removed from whitelist
-     * @param addresses Removed addresses
+     * @notice The event that is emitted when the gateway address is updated
+     * @param gateway The new gateway address
      */
-    event RemoveWhitelist(address[] addresses);
+    event SetGateway(address gateway);
 
     /**
-     * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)
+     * @notice The event that is emitted when the state root is approved
+     * @param chainId Destination chain id
+     * @param height Block height
+     * @param root State root
+     */
+    event ApprovedStateRoot(
+        uint256 indexed chainId,
+        uint256 indexed height,
+        bytes32 root
+    );
+
+    /* ----------------------------- Errors -------------------------------- */
+
+    /**
+     * @notice Error if not authorized in Gateway
+     */
+    error NotAuthorized();
+
+    /**
+     * @notice Error if address is 0
+     */
+    error ZeroAddressNotAllowed();
+
+    /**
+     * @notice Error if too many queries
+     */
+    error TooManyQueries();
+
+    /**
+     * @notice Error if different trie roots
+     */
+    error DifferentTrieRoots(bytes32 root);
+
+    /**
+     * @notice Error if not exist root
+     */
+    error NotExistRoot();
+
+    /* ----------------------------- Constructor -------------------------------- */
+
+    /**
+     * @notice Constructor that sets LightClient information
+     * @param _gateway The address of the Gateway contract
+     * @param _oracle The address of the Chainlink contract
+     */
+    constructor(address _gateway, address _oracle) {
+        if (_gateway == address(0)) revert ZeroAddressNotAllowed();
+
+        GATEWAY = _gateway;
+        setOracle(_oracle);
+
+        emit SetGateway(_gateway);
+    }
+
+    /* ----------------------------- External Functions -------------------------------- */
+
+    /**
+     * @notice This function can be requested from the Gateway contract to add arbitrary processing.
+     * @dev Requesting External Adapter to get State root for ChainlinkOracle contract.
      * @param queries request query data
      */
-    function requestQuery(QueryType.QueryRequest[] memory queries) external {
-        require(isWhitelisted(tx.origin), "Futaba: Not whitelisted");
+    function requestQuery(
+        QueryType.QueryRequest[] memory queries
+    ) external virtual onlyGateway {
         uint256 querySize = queries.length;
-        require(querySize <= MAX_QUERY_COUNT, "Futaba: Too many queries");
+        if (querySize > _MAX_QUERY_COUNT) revert TooManyQueries();
 
         QueryType.OracleQuery[] memory requests = new QueryType.OracleQuery[](
             querySize
@@ -135,17 +205,21 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
     /**
      * @notice This function is for validation upon receipt of query(mock verifies account proof and storage proof)
+     * @dev Receive proof data from Gateway contract and verify account proof and storage proof.
+     * Returns the results of the verification to the Gateway contract.
      * @param message response query data
+     * @return bool Whether the verification was successful
+     * @return bytes[] The result of the verification
      */
     function verify(
         bytes memory message
-    ) public view returns (bool, bytes[] memory) {
+    ) external virtual onlyGateway returns (bool, bytes[] memory) {
         Proof[] memory proofs = abi.decode(message, (Proof[]));
         uint256 proofSize = proofs.length;
         bytes[] memory results = new bytes[](proofSize);
 
         // Check if there is a corresponding state root for each query
-        checkRoot(proofs);
+        _checkRoot(proofs);
 
         for (uint i; i < proofSize; i++) {
             Proof memory proof = proofs[i];
@@ -161,7 +235,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
 
             uint256 storageProofSize = storageProofs.length;
 
-            // Check if the state root corresponding to the query is stored in approvedStateRoots
+            // Check if there is a corresponding storage root for each query
             // If not saved, verify account proof
             // If stored, skip account proof verification and verify storage proof
             if (storageRoot != bytes32("")) {
@@ -169,11 +243,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                 // Storage proof verification
                 for (uint j; j < storageProofSize; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    require(
-                        storageRoot == storageProof.root,
-                        "Futaba: verify - different trie roots"
-                    );
-                    bytes32 value = getStorageValue(storageProof);
+                    if (storageRoot != storageProof.root)
+                        revert DifferentTrieRoots(storageProof.root);
+
+                    bytes32 value = _getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;
@@ -188,13 +261,15 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
                     );
 
                 // If the account proof is successfully verified, the storage root that can be obtained from it is stored in the mapping.
-                storageRoot = account.storageRoot;
+                approvedStorageRoots[proof.dstChainId][proof.height][
+                    accountProof.account
+                ] = account.storageRoot;
 
                 // Storage proof verification
                 bytes memory result;
                 for (uint j; j < storageProofSize; j++) {
                     StorageProof memory storageProof = storageProofs[j];
-                    bytes32 value = getStorageValue(storageProof);
+                    bytes32 value = _getStorageValue(storageProof);
                     result = bytes.concat(result, value);
                 }
                 results[i] = result;
@@ -203,18 +278,30 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         return (true, results);
     }
 
+    /**
+     * @notice This function is for updating the state root
+     * @dev Update the state root with the response from the ChainlinkOracle contract.
+     * @param responses Data about state root returned from Chainlink's external adapter
+     */
     function updateHeader(
         QueryType.OracleResponse[] memory responses
-    ) external override onlyOracle {
-        for (uint i; i < responses.length; i++) {
+    ) external {
+        if (oracle != msg.sender) revert NotAuthorized();
+
+        uint256 responseSize = responses.length;
+        for (uint i; i < responseSize; i++) {
             QueryType.OracleResponse memory response = responses[i];
             bytes32 root = approvedStateRoots[response.dstChainId][
                 response.height
             ];
             if (root != bytes32("")) {
-                require(
-                    root == response.root,
-                    "Futaba: updateHeader - different trie roots"
+                if (root != response.root)
+                    revert DifferentTrieRoots(response.root);
+
+                emit ApprovedStateRoot(
+                    response.dstChainId,
+                    response.height,
+                    response.root
                 );
             } else {
                 approvedStateRoots[response.dstChainId][
@@ -233,6 +320,7 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     /**
      * @notice No transaction fees charged at this time
      * @param queries request query data
+     * @return uint256 Transaction fee
      */
     function estimateFee(
         QueryType.QueryRequest[] memory queries
@@ -241,52 +329,10 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
     }
 
     /**
-     * @notice Add to whitelist
-     * @param addresses Addresses to add
-     */
-    function addToWhitelist(address[] calldata addresses) external onlyOwner {
-        for (uint i = 0; i < addresses.length; i++) {
-            whitelist[addresses[i]] = true;
-        }
-
-        emit AddWhitelist(addresses);
-    }
-
-    /**
-     * @notice Remove from whitelist
-     * @param toRemoveAddresses Addresses to remove
-     */
-    function removeFromWhitelist(
-        address[] calldata toRemoveAddresses
-    ) external onlyOwner {
-        for (uint i = 0; i < toRemoveAddresses.length; i++) {
-            delete whitelist[toRemoveAddresses[i]];
-        }
-
-        emit RemoveWhitelist(toRemoveAddresses);
-    }
-
-    /**
-     * @notice Check if address is whitelisted
-     * @param addr Address to check
-     * @return bool True if whitelisted
-     */
-    function isWhitelisted(address addr) public view returns (bool) {
-        return whitelist[addr];
-    }
-
-    function setOracle(address _oracle) public onlyOwner {
-        oracle = _oracle;
-    }
-
-    function getOracle() public view returns (address) {
-        return oracle;
-    }
-
-    /**
      * @notice Function to retrieve the state root stored in a specific chain and height
      * @param chainId Chain ID
      * @param height Block height
+     * @return bytes32 Approved state root
      */
     function getApprovedStateRoot(
         uint32 chainId,
@@ -295,14 +341,46 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
         return approvedStateRoots[chainId][height];
     }
 
-    /* internal function */
+    /**
+     * @notice Get the oracle address
+     * @return address The address of the ChainlinkOracle contract
+     */
+    function getOracle() external view returns (address) {
+        return oracle;
+    }
+
+    /**
+     * @notice Check if the contract supports the interface
+     * @param interfaceId Interface ID
+     * @return bool Whether the contract supports the interface
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(ILightClient).interfaceId;
+    }
+
+    /* ----------------------------- Public Functions -------------------------------- */
+
+    /**
+     * @notice Set the oracle address
+     * @param _oracle The address of the ChainlinkOracle contract
+     */
+    function setOracle(address _oracle) public onlyOwner {
+        if (_oracle == address(0)) revert ZeroAddressNotAllowed();
+        oracle = _oracle;
+
+        emit SetOracle(_oracle);
+    }
+
+    /* ----------------------------- Internal Functions -------------------------------- */
 
     /**
      * @notice Validate storage proof and retrieve target data
      * @param storageProof Storage proof for verification
      * @return bytes32 Value of target storage
      */
-    function getStorageValue(
+    function _getStorageValue(
         StorageProof memory storageProof
     ) internal pure returns (bytes32) {
         bytes32 path = keccak256(abi.encodePacked(uint256(storageProof.path)));
@@ -318,23 +396,24 @@ contract ChainlinkLightClient is ILightClient, IChainlinkLightClient, Ownable {
      * @notice Check if root exists
      * @param proofs Proofs to check
      */
-    function checkRoot(Proof[] memory proofs) internal view {
-        for (uint i = 0; i < proofs.length; i++) {
+    function _checkRoot(Proof[] memory proofs) internal view {
+        uint256 proofSize = proofs.length;
+        for (uint i; i < proofSize; i++) {
             Proof memory proof = proofs[i];
-            require(
-                approvedStateRoots[proof.dstChainId][proof.height] !=
-                    bytes32(""),
-                "Futaba: verify - not exsit root"
-            );
+            if (
+                approvedStateRoots[proof.dstChainId][proof.height] ==
+                bytes32("")
+            ) revert NotExistRoot();
         }
     }
 
-    /* modifier */
+    /* ----------------------------- Modifiers -------------------------------- */
+
     /**
-     * @notice Modifier to check if the caller is the oracle
+     * @notice Modifier to check if the caller is the gateway
      */
-    modifier onlyOracle() {
-        require(msg.sender == oracle, "Futaba: onlyOracle - not oracle");
+    modifier onlyGateway() {
+        if (GATEWAY != msg.sender) revert NotAuthorized();
         _;
     }
 }

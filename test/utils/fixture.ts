@@ -1,13 +1,12 @@
-import { ethers } from "hardhat"
-import { SRC } from "./constants"
+import { ethers, upgrades } from "hardhat"
 
 export async function deployGatewayFixture() {
   // Contracts are deployed using the first signer/account by default
   const [owner, otherAccount] = await ethers.getSigners()
 
   const Gateway = await ethers.getContractFactory("Gateway")
-  const gateway = await Gateway.deploy()
-  await gateway.deployed()
+  const gateway = await upgrades.deployProxy(Gateway, [1], { kind: 'uups' });
+  console.log("Gateway deployed to:", gateway.address);
 
   return { gateway, owner, otherAccount }
 }

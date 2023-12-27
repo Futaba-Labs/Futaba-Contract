@@ -1,14 +1,12 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ContractReceipt } from "ethers";
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther, keccak256, solidityPack } from "ethers/lib/utils";
-import { Gateway, LinkTokenMock, FunctionsMock, LightClientMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock } from "../typechain-types";
+import { Gateway, LinkTokenMock, FunctionsMock, ChainlinkLightClient, Operator, ReceiverMock, OracleTestMock, FunctionsLightClientMock } from "../typechain-types";
 import { QueryType } from "../typechain-types/contracts/Gateway";
 import { JOB_ID, SOURCE, ZERO_ADDRESS, TEST_CALLBACK_ADDRESS, MESSAGE, DSTCHAINID, HEIGTH, SRC, PROOF_FOR_FUNCTIONS, DSTCHAINID_GOERLI, HEIGTH_GOERLI, SRC_GOERLI } from "./utils/constants";
-import { deployGatewayFixture } from "./utils/fixture";
 import { getSlots } from "./utils/helper";
-import { ethers } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 
@@ -18,7 +16,7 @@ describe("Gateway", async function () {
   let gateway: Gateway,
     linkToken: LinkTokenMock,
     functionMock: FunctionsMock,
-    lcMock: LightClientMock,
+    lcMock: FunctionsLightClientMock,
     oracleMock: OracleTestMock,
     chainlinkLightClient: ChainlinkLightClient,
     operator: Operator,
@@ -28,7 +26,12 @@ describe("Gateway", async function () {
 
   before(async () => {
     [owner, otherSigner] = await ethers.getSigners()
-    gateway = (await loadFixture(deployGatewayFixture)).gateway
+
+    const Gateway = await ethers.getContractFactory("Gateway")
+    const g = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
+    await g.deployed()
+    gateway = g as Gateway
+
     const LinkTokenMock = await ethers.getContractFactory("LinkTokenMock")
     const linkMock = await LinkTokenMock.deploy()
     await linkMock.deployed()
@@ -46,57 +49,62 @@ describe("Gateway", async function () {
     operator = await Operator.deploy(linkToken.address, owner.address)
     await operator.deployed()
 
-    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
-    chainlinkLightClient = await ChainlinkLightClient.deploy()
-    await chainlinkLightClient.deployed()
-
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), chainlinkLightClient.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
     await oracleMock.deployed()
 
+    const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
+    chainlinkLightClient = await ChainlinkLightClient.deploy(gateway.address, oracleMock.address)
+    await chainlinkLightClient.deployed()
+
     const ReceiverMock = await ethers.getContractFactory("ReceiverMock")
-    receiverMock = await ReceiverMock.deploy()
+    receiverMock = await ReceiverMock.deploy(gateway.address)
     await receiverMock.deployed()
 
     let tx = await lcMock.setOracle(functionMock.address)
+    await tx.wait()
     tx = await lcMock.setSubscriptionId(0)
     await tx.wait()
     tx = await lcMock.setSource(SOURCE)
     await tx.wait()
     tx = await functionMock.setLightClient(lcMock.address)
     await tx.wait()
-    tx = await chainlinkLightClient.setOracle(oracleMock.address)
-    await tx.wait()
     tx = await linkToken.mint(oracleMock.address, ethers.utils.parseEther("1000"))
     await tx.wait()
-    tx = await chainlinkLightClient.addToWhitelist([owner.address])
+    tx = await oracleMock.setClient(chainlinkLightClient.address)
     await tx.wait()
   });
 
-  it("constructor()", async function () {
+  it("deploy()", async function () {
     const Gateway = await ethers.getContractFactory("Gateway")
-    const newGateway = await Gateway.deploy()
+    const newGateway = await upgrades.deployProxy(Gateway, [1], { initializer: 'initialize', kind: 'uups' });
     await newGateway.deployed()
-    expect(await newGateway.nonce()).to.be.equal(1)
+    expect(await newGateway.getNonce()).to.be.equal(1)
   })
 
+  it("upgrade()", async function () {
+    const Gateway = await ethers.getContractFactory("Gateway")
+    const newGateway = await upgrades.deployProxy(Gateway, [2], { initializer: 'initialize', kind: 'uups' });
+    await newGateway.deployed()
+    expect(await newGateway.getNonce()).to.be.equal(2)
 
-  it("query() - invalid target client", async function () {
-    const slots = getSlots()
-    const src = ZERO_ADDRESS
-    const callBack = TEST_CALLBACK_ADDRESS
+    await upgrades.upgradeProxy(newGateway, Gateway);
+
+    expect(await newGateway.getNonce()).to.be.equal(2)
+  })
+
+  it("query() - no queries", async function () {
+    const src = SRC
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = MESSAGE
 
-    const QueryRequests: QueryType.QueryRequestStruct[] = [
-      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
-      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
-    ]
-    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
+    const QueryRequests: QueryType.QueryRequestStruct[] = []
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroQuery")
   })
 
-  it("query() - invalid light client", async function () {
+  it("query() - light client address is zero", async function () {
     const slots = getSlots()
     const src = SRC
     const callBack = TEST_CALLBACK_ADDRESS
@@ -110,10 +118,24 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
+  it("query() - callBack address is zero", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = ZERO_ADDRESS
+    const lightClient = chainlinkLightClient.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
+  })
+
   it("query() - light client with no interface defined", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = TEST_CALLBACK_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = TEST_CALLBACK_ADDRESS
     const message = MESSAGE
 
@@ -124,10 +146,24 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.reverted
   })
 
-  it("query() - invalid callBack", async function () {
+  it("query() - callBack with no interface defined", async function () {
     const slots = getSlots()
     const src = SRC
-    const callBack = ZERO_ADDRESS
+    const callBack = TEST_CALLBACK_ADDRESS
+    const lightClient = chainlinkLightClient.address
+    const message = MESSAGE
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.reverted
+  })
+
+  it("query() - invalid target contract", async function () {
+    const slots = getSlots()
+    const src = ZERO_ADDRESS
+    const callBack = receiverMock.address
     const lightClient = lcMock.address
     const message = MESSAGE
 
@@ -138,11 +174,55 @@ describe("Gateway", async function () {
     await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "ZeroAddress")
   })
 
+  it("query() - invalid chainId", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = ethers.utils.toUtf8Bytes("")
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: 0, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: 0, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
+  })
+
+  it("query() - invalid height", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = ethers.utils.toUtf8Bytes("")
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: 0, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: 0, slot: slots[1] }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputZeroValue")
+  })
+
+  it("query() - invalid slot", async function () {
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = lcMock.address
+    const message = ethers.utils.toUtf8Bytes("")
+    const emptySlot = ethers.utils.formatBytes32String("")
+
+    const QueryRequests: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: emptySlot },
+      {
+        dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: emptySlot
+      }
+    ]
+    await expect(gateway.query(QueryRequests, lightClient, callBack, message)).to.be.revertedWithCustomError(gateway, "InvalidInputEmptyBytes32")
+  })
+
   describe("When using Chainlink Functions", async function () {
     it("query() - single query", async function () {
       const slots = getSlots()
       const src = SRC
-      const callBack = TEST_CALLBACK_ADDRESS
+      const callBack = receiverMock.address
       const lightClient = lcMock.address
       const message = MESSAGE
 
@@ -182,7 +262,7 @@ describe("Gateway", async function () {
     it("query()", async function () {
       const slots = getSlots()
       const src = SRC
-      const callBack = TEST_CALLBACK_ADDRESS
+      const callBack = receiverMock.address
       const lightClient = chainlinkLightClient.address
       const message = MESSAGE
 
@@ -193,8 +273,8 @@ describe("Gateway", async function () {
       const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, queries, message, lightClient])
 
       // calculate queryId
-      const nonce = await gateway.nonce()
-      const queryId = keccak256(solidityPack(["bytes", "uint64"], [encodedQuery, nonce]))
+      const nonce = await gateway.getNonce()
+      const queryId = keccak256(solidityPack(["bytes", "uint256"], [encodedQuery, nonce]))
 
       let tx = gateway.query(queries, lightClient, callBack, message)
       await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, message.toLowerCase(), lightClient, callBack);
@@ -214,7 +294,49 @@ describe("Gateway", async function () {
       expect(query.data).to.be.equal(encodedQuery)
       expect(query.status).to.be.equal(0)
 
-      expect(await gateway.nonce()).to.be.equal(nonce.add(1))
+      expect(await gateway.getNonce()).to.be.equal(nonce.add(1))
+
+      // check query status
+      expect(await gateway.getQueryStatus(queryId)).to.be.equal(0)
+    })
+
+    it("query() - no message", async function () {
+      const slots = getSlots()
+      const src = SRC
+      const callBack = receiverMock.address
+      const lightClient = chainlinkLightClient.address
+      const emptyMessage = ethers.utils.toUtf8Bytes("");
+
+
+      const queries: QueryType.QueryRequestStruct[] = [
+        { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+        { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+      ]
+      const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, queries, emptyMessage, lightClient])
+
+      // calculate queryId
+      const nonce = await gateway.getNonce()
+      const queryId = keccak256(solidityPack(["bytes", "uint256"], [encodedQuery, nonce]))
+
+      let tx = gateway.query(queries, lightClient, callBack, emptyMessage)
+      await expect(tx).to.emit(gateway, "Packet").withArgs(owner.address, queryId, encodedQuery, ethers.utils.hexlify(emptyMessage).toLowerCase(), lightClient, callBack);
+
+      const oracle = await chainlinkLightClient.getOracle()
+      const requests = []
+
+      // Formatted to check Oracle events
+      for (const request of queries) {
+        requests.push({ dstChainId: request.dstChainId, height: request.height })
+      }
+
+      const encodedRequest = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height)[]"], [requests])
+      await expect(tx).to.emit(chainlinkLightClient, "NotifyOracle").withArgs(anyValue, oracle, encodedRequest);
+
+      const query = await gateway.queryStore(queryId)
+      expect(query.data).to.be.equal(encodedQuery)
+      expect(query.status).to.be.equal(0)
+
+      expect(await gateway.getNonce()).to.be.equal(nonce.add(1))
 
       // check query status
       expect(await gateway.getQueryStatus(queryId)).to.be.equal(0)

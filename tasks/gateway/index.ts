@@ -1,1 +1,2 @@
-import "./deployGateway"
+import "./deploy"
+import "./upgrade"

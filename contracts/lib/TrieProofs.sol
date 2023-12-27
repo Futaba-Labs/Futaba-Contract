@@ -1,11 +1,13 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-/*
-Forked from: https://github.com/lorenzb/proveth/blob/master/onchain/ProvethVerifier.sol
-*/
+/*`
+ * @title TrieProofs
+ * @dev Library for verifing Merkle Patricia Proofs
+ * @notice Forked from: https://github.com/lorenzb/proveth/blob/master/onchain/ProvethVerifier.sol
+ */
 
-import "./RLPReader.sol";
+import {RLPReader} from "./RLPReader.sol";
 
 library TrieProofs {
     using RLPReader for RLPReader.RLPItem;
@@ -14,12 +16,73 @@ library TrieProofs {
     bytes32 internal constant EMPTY_TRIE_ROOT_HASH =
         0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421;
 
+    /**
+     * @notice Error if hash is empty
+     */
+    error BadEmptyProof();
+
+    /**
+     * @notice Error if first proof part is invalid
+     */
+    error BadFirstProofPart();
+
+    /**
+     * @notice Error if hash is invalid
+     */
+    error BadHash();
+
+    /**
+     * @notice Error if invalid proof
+     */
+    error UnexpectedEndOfProof();
+
+    /**
+     * @notice Error if invalid node length
+     */
+    error InvalidNodeLength();
+
+    /**
+     * @notice Error if the next path item is not empty
+     */
+    error InvalidExclusionProof();
+
+    /**
+     * @notice Error if continuing branch has depleted path
+     */
+    error ContinuingBranchDepletedPath();
+
+    /**
+     * @notice Error if invalid node
+     */
+    error InvalidNode();
+
+    /**
+     * @notice Error if invalid nibble position
+     */
+    error InvalidNibblePosition();
+
+    /**
+     * @notice Error if empty bytes array
+     */
+    error EmptyBytesArray();
+
+    /**
+     * @notice Error if skip nibbles amount too large
+     */
+    error SkipNibblesAmountTooLarge();
+
+    /**
+     * @notice Verifies a Merkle Patricia proof.
+     * @param proofRLP RLP encoded Merkle Patricia proof
+     * @param rootHash Root hash of the Merkle Patricia proof
+     * @param path32 Path to the value in the Merkle Patricia proof
+     * @return value The value in the Merkle Patricia proof
+     */
     function verify(
         bytes memory proofRLP, //storageProof
         bytes32 rootHash, // accountRoot
         bytes32 path32 // keccak256(abi.encodePacked(slot));
     ) internal pure returns (bytes memory value) {
-        // TODO: Optimize by using word-size paths instead of byte arrays
         bytes memory path = new bytes(32);
         assembly {
             mstore(add(path, 0x20), path32)
@@ -31,25 +94,26 @@ library TrieProofs {
         uint8 nodeChildren;
         RLPReader.RLPItem memory children;
 
-        uint256 pathOffset = 0; // Offset of the proof
+        uint256 pathOffset; // Offset of the proof
         bytes32 nextHash; // Required hash for the next node
 
         if (proof.length == 0) {
             // Root hash of empty tx trie
-            require(rootHash == EMPTY_TRIE_ROOT_HASH, "Bad empty proof");
+            if (rootHash != EMPTY_TRIE_ROOT_HASH) revert BadEmptyProof();
             return new bytes(0);
         }
 
-        for (uint256 i = 0; i < proof.length; i++) {
+        uint256 proofSize = proof.length;
+        for (uint256 i; i < proofSize; i++) {
             // We use the fact that an rlp encoded list consists of some
             // encoding of its length plus the concatenation of its
             // *rlp-encoded* items.
-            bytes memory rlpNode = proof[i].toRlpBytes(); // TODO: optimize by not encoding and decoding?
+            bytes memory rlpNode = proof[i].toRlpBytes();
 
             if (i == 0) {
-                require(rootHash == keccak256(rlpNode), "Bad first proof part");
+                if (rootHash != keccak256(rlpNode)) revert BadFirstProofPart();
             } else {
-                require(nextHash == keccak256(rlpNode), "Bad hash");
+                if (nextHash != keccak256(rlpNode)) revert BadHash();
             }
 
             RLPReader.RLPItem[] memory node = proof[i].toList();
@@ -57,7 +121,6 @@ library TrieProofs {
             // Extension or Leaf node
             if (node.length == 2) {
                 /*
-                // TODO: wtf is a divergent node
                 // proof claims divergent extension or leaf
                 if (proofIndexes[i] == 0xff) {
                     require(i >= proof.length - 1); // divergent node must come last in proof
@@ -78,10 +141,8 @@ library TrieProofs {
 
                 // last proof item
                 if (i == proof.length - 1) {
-                    require(
-                        pathOffset == path.length,
-                        "Unexpected end of proof (leaf)"
-                    );
+                    if (pathOffset != path.length)
+                        revert UnexpectedEndOfProof();
                     return node[1].toBytes(); // Data is the second item in a leaf node
                 } else {
                     // not last proof item
@@ -94,7 +155,7 @@ library TrieProofs {
                 }
             } else {
                 // Must be a branch node at this point
-                require(node.length == 17, "Invalid node length");
+                if (node.length != 17) revert InvalidNodeLength();
 
                 if (i == proof.length - 1) {
                     // Proof ends in a branch node, exclusion proof in most cases
@@ -105,17 +166,13 @@ library TrieProofs {
                         children = node[nodeChildren];
 
                         // Ensure that the next path item is empty, end of exclusion proof
-                        require(
-                            children.toBytes().length == 0,
-                            "Invalid exclusion proof"
-                        );
+                        if (children.toBytes().length != 0)
+                            revert InvalidExclusionProof();
                         return new bytes(0);
                     }
                 } else {
-                    require(
-                        pathOffset < path.length,
-                        "Continuing branch has depleted path"
-                    );
+                    if (pathOffset >= path.length)
+                        revert ContinuingBranchDepletedPath();
 
                     nodeChildren = extractNibble(path32, pathOffset);
                     children = node[nodeChildren];
@@ -140,21 +197,24 @@ library TrieProofs {
         RLPReader.RLPItem memory node
     ) internal pure returns (bytes32 nextHash) {
         bytes memory nextHashBytes = node.toBytes();
-        require(nextHashBytes.length == 32, "Invalid node");
+        if (nextHashBytes.length != 32) revert InvalidNode();
 
         assembly {
             nextHash := mload(add(nextHashBytes, 0x20))
         }
     }
 
-    /*
-     * Nibble is extracted as the least significant nibble in the returned byte
+    /**
+     * @dev Nibble is extracted as the least significant nibble in the returned byte
+     * @param path keccak256(abi.encodePacked(slot))
+     * @param position position of the nibble
+     * @return nibble
      */
     function extractNibble(
         bytes32 path,
         uint256 position
     ) internal pure returns (uint8 nibble) {
-        require(position < 64, "Invalid nibble position");
+        if (position >= 64) revert InvalidNibblePosition();
         bytes1 shifted = position == 0
             ? bytes1(path >> 4)
             : bytes1(path << ((position - 1) * 4));
@@ -162,18 +222,24 @@ library TrieProofs {
         return uint8(bytes1(shifted & f));
     }
 
+    /**
+     * @dev Decodes a compact-encoded nibble array.
+     * @param compact The compact-encoded nibble array.
+     * @param skipNibbles The number of nibbles to skip.
+     * @return nibbles The decoded nibble array.
+     */
     function decodeNibbles(
         bytes memory compact,
         uint skipNibbles
     ) internal pure returns (bytes memory nibbles) {
-        require(compact.length > 0, "Empty bytes array");
+        if (compact.length == 0) revert EmptyBytesArray();
 
         uint length = compact.length * 2;
-        require(skipNibbles <= length, "Skip nibbles amount too large");
+        if (skipNibbles > length) revert SkipNibblesAmountTooLarge();
         length -= skipNibbles;
 
         nibbles = new bytes(length);
-        uint nibblesLength = 0;
+        uint nibblesLength;
 
         for (uint i = skipNibbles; i < skipNibbles + length; i += 1) {
             if (i % 2 == 0) {
@@ -191,10 +257,15 @@ library TrieProofs {
         assert(nibblesLength == nibbles.length);
     }
 
+    /**
+     * @dev Decodes a compact-encoded nibble array.
+     * @param compact The compact-encoded nibble array.
+     * @return nibbles The decoded nibble array.
+     */
     function merklePatriciaCompactDecode(
         bytes memory compact
     ) internal pure returns (bytes memory nibbles) {
-        require(compact.length > 0, "Empty bytes array");
+        if (compact.length == 0) revert EmptyBytesArray();
         uint first_nibble = (uint8(compact[0]) >> 4) & 0xF;
         uint skipNibbles;
         if (first_nibble == 0) {
@@ -212,13 +283,22 @@ library TrieProofs {
         return decodeNibbles(compact, skipNibbles);
     }
 
+    /**
+     * @dev Returns the length of the shared prefix of two byte arrays.
+     * @param xsOffset The offset of the first byte array.
+     * @param xs The first byte array.
+     * @param ys The second byte array.
+     * @return length The length of the shared prefix.
+     */
     function sharedPrefixLength(
         uint xsOffset,
         bytes memory xs,
         bytes memory ys
     ) internal pure returns (uint) {
-        uint256 i = 0;
-        for (i = 0; i + xsOffset < xs.length && i < ys.length; i++) {
+        uint256 i;
+        uint256 xsSize = xs.length;
+        uint256 ysSize = ys.length;
+        for (i; i + xsOffset < xsSize && i < ysSize; i++) {
             if (xs[i + xsOffset] != ys[i]) {
                 return i;
             }

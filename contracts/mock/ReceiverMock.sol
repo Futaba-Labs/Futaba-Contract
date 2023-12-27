@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-import "../interfaces/IReceiver.sol";
-import "../QueryType.sol";
+import {IReceiver} from "../interfaces/IReceiver.sol";
+import {IGateway} from "../interfaces/IGateway.sol";
+import {QueryType} from "../QueryType.sol";
 
 /**
  * @title ReceiverMock contract
@@ -17,6 +18,25 @@ contract ReceiverMock is IReceiver {
         bytes message
     );
 
+    address public gateway;
+
+    constructor(address _gateway) {
+        gateway = _gateway;
+    }
+
+    function sendQuery(
+        QueryType.QueryRequest[] memory queries,
+        address lightClient,
+        bytes memory message
+    ) external payable {
+        IGateway(gateway).query{value: msg.value}(
+            queries,
+            lightClient,
+            address(this), // callback address
+            message
+        );
+    }
+
     function receiveQuery(
         bytes32 queryId,
         bytes[] memory results,
@@ -24,5 +44,11 @@ contract ReceiverMock is IReceiver {
         bytes memory message
     ) external {
         emit QueryReceived(queryId, results, queries, message);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return interfaceId == type(IReceiver).interfaceId;
     }
 }

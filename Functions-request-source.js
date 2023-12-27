@@ -22,7 +22,10 @@ for (let i = 0; i < oracleQueries.length; i++) {
     url: query[0],
     method: 'POST',
     // Get a free API key from https://coinmarketcap.com/api/
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json'
+    },
     data: {
       id: 1,
       jsonrpc: "2.0",
@@ -38,7 +41,6 @@ for (let i = 0; i < oracleQueries.length; i++) {
 
 const responses = await Promise.all(requests)
 
-// TODO modify
 let results = responses.length.toString() + ","
 for (let i = 0; i < responses.length; i++) {
   const response = responses[i]
