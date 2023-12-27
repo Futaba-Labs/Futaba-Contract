@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import {ILightClient} from "./interfaces/ILightClient.sol";
 import {IChainlinkLightClient} from "./interfaces/IChainlinkLightClient.sol";
 import {IExternalAdapter} from "./interfaces/IExternalAdapter.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {TrieProofs} from "./lib/TrieProofs.sol";
 import {RLPReader} from "./lib/RLPReader.sol";
 import {EthereumDecoder} from "./lib/EthereumDecoder.sol";
@@ -44,6 +45,12 @@ contract ChainlinkLightClient is
     // Contract to execute request to chainlink
     address public oracle;
 
+    // Chainlink data feed contract address
+    address public chainlinkDataFeed;
+
+    // Gas data
+    GasData public gasData;
+
     /* ----------------------------- Structure -------------------------------- */
 
     /**
@@ -80,6 +87,12 @@ contract ChainlinkLightClient is
         bytes32 root;
         bytes32 path;
         bytes proof;
+    }
+
+    struct GasData {
+        uint256 gasLimit;
+        uint256 gasPrice;
+        uint256 gasPerQuery;
     }
 
     /* ----------------------------- Events -------------------------------- */
@@ -132,6 +145,20 @@ contract ChainlinkLightClient is
         bytes32 root
     );
 
+    /**
+     * @notice The event that is emit when Chainlink data feed contract address is updated
+     * @param chainlinkDataFeed Chainlink data feed contract address
+     */
+    event SetChainlinkDataFeed(address chainlinkDataFeed);
+
+    /**
+     * @notice The event that is emit when gas data is updated
+     * @param gasLimit Gas limit
+     * @param gasPrice Gas price
+     * @param gasPerQuery Gas per query
+     */
+    event SetGasData(uint256 gasLimit, uint256 gasPrice, uint256 gasPerQuery);
+
     /* ----------------------------- Errors -------------------------------- */
 
     /**
@@ -145,9 +172,14 @@ contract ChainlinkLightClient is
     error ZeroAddressNotAllowed();
 
     /**
-     * @notice Error if too many queries
+     * @notice Error if the number of queries exceeds the limit
      */
     error TooManyQueries();
+
+    /**
+     * @notice Error if input value is zero
+     */
+    error ZeroValueNotAllowed();
 
     /**
      * @notice Error if different trie roots
@@ -165,12 +197,25 @@ contract ChainlinkLightClient is
      * @notice Constructor that sets LightClient information
      * @param _gateway The address of the Gateway contract
      * @param _oracle The address of the Chainlink contract
+     * @param _chainlinkDataFeed The address of the Chainlink data feed contract
+     * @param _gasLimit Gas limit
+     * @param _gasPrice Gas price
+     * @param _gasPerQuery Gas per query
      */
-    constructor(address _gateway, address _oracle) {
+    constructor(
+        address _gateway,
+        address _oracle,
+        address _chainlinkDataFeed,
+        uint256 _gasLimit,
+        uint256 _gasPrice,
+        uint256 _gasPerQuery
+    ) {
         if (_gateway == address(0)) revert ZeroAddressNotAllowed();
 
         GATEWAY = _gateway;
         setOracle(_oracle);
+        setChainlinkDataFeed(_chainlinkDataFeed);
+        setGasData(_gasLimit, _gasPrice, _gasPerQuery);
 
         emit SetGateway(_gateway);
     }
@@ -325,7 +370,22 @@ contract ChainlinkLightClient is
     function estimateFee(
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256) {
-        return 0;
+        if (queries.length > _MAX_QUERY_COUNT) revert TooManyQueries();
+
+        uint256 queryFee = ((gasData.gasPerQuery * queries.length) +
+            gasData.gasLimit) * gasData.gasPrice; // Gas fee
+
+        // Oracle fee calculation
+        // Assuming Chainlink's data feed contract is already deployed and its address is stored in a state variable named `chainlinkDataFeed`
+        // Also assuming that the `getLatestPrice` function of the Chainlink data feed contract returns the latest LINK/Native Token rate
+        (, int answer, , , ) = AggregatorV3Interface(chainlinkDataFeed)
+            .latestRoundData();
+        uint256 oracleFee = uint256(answer);
+
+        // Total verification fee is the sum of relayer fee and oracle fee
+        uint256 totalFee = queryFee + oracleFee;
+
+        return totalFee;
     }
 
     /**
@@ -371,6 +431,29 @@ contract ChainlinkLightClient is
         oracle = _oracle;
 
         emit SetOracle(_oracle);
+    }
+
+    function setChainlinkDataFeed(address _chainlinkDataFeed) public onlyOwner {
+        if (_chainlinkDataFeed == address(0)) revert ZeroAddressNotAllowed();
+        chainlinkDataFeed = _chainlinkDataFeed;
+
+        emit SetChainlinkDataFeed(_chainlinkDataFeed);
+    }
+
+    function getChainlinkDataFeed() public view returns (address) {
+        return chainlinkDataFeed;
+    }
+
+    function setGasData(
+        uint256 _gasLimit,
+        uint256 _gasPrice,
+        uint256 _gasPerQuery
+    ) public onlyOwner {
+        if (_gasLimit == 0 || _gasPrice == 0 || _gasPerQuery == 0)
+            revert ZeroValueNotAllowed();
+        gasData = GasData(_gasLimit, _gasPrice, _gasPerQuery);
+
+        emit SetGasData(_gasLimit, _gasPrice, _gasPerQuery);
     }
 
     /* ----------------------------- Internal Functions -------------------------------- */
