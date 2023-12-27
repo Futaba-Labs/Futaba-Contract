@@ -84,3 +84,9 @@ export const GREATER_THAN_32BYTES_PROOF = {
 export const MULTI_QUERY_PROOF = PROOF["greater_than_32bytes_proof"]
 
 export const PROOF_FOR_FUNCTIONS = PROOF["proof_for_functions"]
+
+export const GAS_DATA = {
+  gasLimit: BigNumber.from(1000000),
+  gasPrice: BigNumber.from(10000000000), // 10 gwei
+  gasPerQuery: BigNumber.from(21000)
+}

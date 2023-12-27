@@ -17,8 +17,21 @@ contract ChainlinkLightClientMock is ChainlinkLightClient {
 
     constructor(
         address _gateway,
-        address _oracle
-    ) ChainlinkLightClient(_gateway, _oracle) {}
+        address _oracle,
+        address _chainlinkDataFeed,
+        uint256 _gasLimit,
+        uint256 _gasPrice,
+        uint256 _gasPerQuery
+    )
+        ChainlinkLightClient(
+            _gateway,
+            _oracle,
+            _chainlinkDataFeed,
+            _gasLimit,
+            _gasPrice,
+            _gasPerQuery
+        )
+    {}
 
     /**
      * @notice This function is intended to make Light Client do something when a query request is made (mock emit events to Oracle)

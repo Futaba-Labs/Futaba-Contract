@@ -31,11 +31,16 @@ contract Gateway is
     // Interface id of IReceiver
     bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
 
+    uint256 public constant MAX_PROTOCOL_FEE = 1 ether; // 1 ETH
+
     uint256 private constant _MAX_QUERY_COUNT = 100;
     uint256 private constant _MAX_RELAYER_COUNT = 10;
 
     // nonce for query id
     uint256 private _nonce;
+
+    // Protocol fee
+    uint256 public protocolFee;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -127,6 +132,12 @@ contract Gateway is
     event Withdraw(address indexed to, uint256 amount);
 
     /**
+     * @notice This event is emitted when the protocol fee is updated
+     * @param protocolFee The new protocol fee
+     */
+    event UpdateProtocolFee(uint256 protocolFee);
+
+    /**
      * @notice This event is emitted when relayers are set
      * @param owner The owner of the contract
      * @param relayer The relayer address
@@ -186,6 +197,11 @@ contract Gateway is
     error CallbackOrLightClientDontSupportInterface();
 
     /**
+     * @notice Error if max protocol fee is exceeded
+     */
+    error MaxProtocolFeeExceeded();
+
+    /**
      * @notice Error if too many queries
      */
     error TooManyQueries();
@@ -216,12 +232,15 @@ contract Gateway is
      * @notice Initialize the contract
      * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
      * @param nonce nonce for query id
+     * @param protocolFee The protocol fee
      */
 
-    function initialize(uint256 nonce) public virtual initializer {
+    function initialize(uint256 nonce, uint256 protocolFee) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
+
         _nonce = nonce;
+        setProtocolFee(protocolFee);
     }
 
     ///@custom:oz-upgrades-unsafe-allow constructor
@@ -491,7 +510,24 @@ contract Gateway is
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        return 0;
+        uint256 verificationFee = ILightClient(lightClient).estimateFee(
+            queries
+        );
+        // Total fee is the sum of protocol fee and verification fee
+        uint256 totalFee = protocolFee + verificationFee;
+        return totalFee;
+    }
+
+    /**
+     * @notice Get the current protocol fee
+     * @param _protocolFee The new protocol fee
+     */
+    function setProtocolFee(uint256 _protocolFee) public onlyOwner {
+        if (_protocolFee > MAX_PROTOCOL_FEE) revert MaxProtocolFeeExceeded();
+
+        protocolFee = _protocolFee;
+
+        emit UpdateProtocolFee(_protocolFee);
     }
 
     /* ----------------------------- Private Functions -------------------------------- */

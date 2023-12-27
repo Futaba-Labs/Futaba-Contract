@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import { ChainlinkLightClientMock, ChainlinkOracle, LinkTokenMock, Operator } from "../typechain-types"
 import { ethers } from "hardhat"
 import { hexlify, hexZeroPad, toUtf8Bytes, parseEther } from "ethers/lib/utils"
-import { JOB_ID, SAMPLE_RESPONSE_FOR_NODE, SINGLE_VALUE_PROOF } from "./utils/constants"
+import { GAS_DATA, JOB_ID, SAMPLE_RESPONSE_FOR_NODE, SINGLE_VALUE_PROOF } from "./utils/constants"
 import { expect } from "chai"
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs"
 
@@ -13,6 +13,9 @@ let chainlinkLightClientMock: ChainlinkLightClientMock,
   operator: Operator,
   owner: SignerWithAddress,
   otherSigner: SignerWithAddress
+
+const oracleFee = parseEther("0.1")
+const gasData = GAS_DATA
 
 before(async function () {
   [owner, otherSigner] = await ethers.getSigners()
@@ -30,8 +33,12 @@ before(async function () {
   chainlinkOracle = await ChainlinkOracle.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
   await chainlinkOracle.deployed()
 
+  const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
+  const aggregatorV3Mock = await AggregatorV3Mock.deploy(8, "Gateway Test", 1, oracleFee)
+  await aggregatorV3Mock.deployed()
+
   const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
-  chainlinkLightClientMock = await ChainlinkLightClient.deploy(chainlinkOracle.address, chainlinkOracle.address)
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy(chainlinkOracle.address, chainlinkOracle.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
   await chainlinkLightClientMock.deployed()
 
   let tx = await linkToken.mint(chainlinkOracle.address, ethers.utils.parseEther("1000"))
