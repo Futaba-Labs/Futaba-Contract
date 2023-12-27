@@ -1,9 +1,10 @@
-import { ethers } from "hardhat";
-
+import { ethers, network } from "hardhat";
+import DEPLOYMENTS from "../constants/deployments.json"
 
 async function main() {
   const Receiver = await ethers.getContractFactory("ReceiverMock");
-  const receiver = await Receiver.deploy();
+  const gatewayAddress = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].gateway
+  const receiver = await Receiver.deploy(gatewayAddress);
 
   await receiver.deployed();
 

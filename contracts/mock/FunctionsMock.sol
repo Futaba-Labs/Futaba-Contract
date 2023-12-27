@@ -1,11 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
-pragma experimental ABIEncoderV2;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
 import "../interfaces/IOracle.sol";
 import "../interfaces/IChainlinkLightClient.sol";
 import "../QueryType.sol";
-import "hardhat/console.sol";
 
 contract FunctionsMock is IOracle {
     IChainlinkLightClient public lightClient;

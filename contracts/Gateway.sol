@@ -1,15 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
-import "./interfaces/IGateway.sol";
-import "./interfaces/ILightClient.sol";
-import "./interfaces/IReceiver.sol";
-import "./QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
+
+import {IGateway} from "./interfaces/IGateway.sol";
+import {ILightClient} from "./interfaces/ILightClient.sol";
+import {IReceiver} from "./interfaces/IReceiver.sol";
+import {QueryType} from "./QueryType.sol";
 import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
-import "hardhat/console.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Gateway contract
@@ -17,17 +18,25 @@ import "hardhat/console.sol";
  * @notice NOT AUDITED
  */
 
-// #TODO: Add @notice & @param description for each: FUNCTION + EVENT + ERROR declaration
 contract Gateway is
     IGateway,
-    Ownable,
-    ReentrancyGuard,
-    GelatoRelayContextERC2771
+    GelatoRelayContextERC2771,
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuardUpgradeable
 {
-    using Address for address payable;
+    /* ----------------------------- Public Storages -------------------------------- */
+
+    // Interface id of ILightClient
+    bytes4 private constant _ILIGHT_CLIENT_ID = 0xaba23c56;
+    // Interface id of IReceiver
+    bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
+
+    uint256 private constant _MAX_QUERY_COUNT = 100;
 
     // nonce for query id
-    uint64 public nonce;
+    uint256 private _nonce;
 
     // Amount of native tokens in this contract
     uint256 public nativeTokenAmount;
@@ -52,6 +61,8 @@ contract Gateway is
 
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
+
+    /* ----------------------------- Events -------------------------------- */
 
     /**
      * @notice This event is emitted when a query is sent
@@ -113,6 +124,22 @@ contract Gateway is
      */
     event Withdraw(address indexed to, uint256 amount);
 
+    /* ----------------------------- Errors -------------------------------- */
+
+    /**
+     * @notice Error if input is invalid
+     */
+    error InvalidInputMessage();
+
+    /**
+     * @notice Error if input is zero
+     */
+    error InvalidInputZeroValue();
+
+    /**
+     * @notice Error if input is not bytes32
+     */
+    error InvalidInputEmptyBytes32();
     /**
      * @notice Error if address is zero
      */
@@ -141,12 +168,55 @@ contract Gateway is
      */
     error InvalidProof(bytes32 queryId);
 
+    /**
+     * @notice Error if callback or light client does not support interface
+     */
+    error CallbackOrLightClientDontSupportInterface();
+
+    /**
+     * @notice Error if too many queries
+     */
+    error TooManyQueries();
+
+    /**
+     * @notice Error if query size is zero
+     */
+    error ZeroQuery();
+
+    /**
+     * @notice Error if withdraw failed
+     */
+    error InvalidWithdraw();
+
+    /* ----------------------------- Initializer -------------------------------- */
+
+    /**
+     * @notice Initialize the contract
+     * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
+     * @param nonce nonce for query id
+     */
+
+    function initialize(uint256 nonce) public virtual initializer {
+        __Ownable2Step_init();
+        __ReentrancyGuard_init();
+        _nonce = nonce;
+    }
+
+    ///@custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        nonce = 1;
+        _disableInitializers();
     }
 
     /**
+     * @dev Override to support UUPS.
+     */
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /* ----------------------------- External Functions -------------------------------- */
+
+    /**
      * @notice This contract is an endpoint for executing query
+     * @dev This function stores query information and emit events to be communicated off-chain.
      * @param queries query data
      * @param lightClient The light client contract address
      * @param callBack The callback contract address
@@ -156,21 +226,32 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries,
         address lightClient,
         address callBack,
-        bytes calldata message
+        bytes memory message
     ) external payable nonReentrant {
-        if (callBack == address(0) || lightClient == address(0)) {
+        uint256 querySize = queries.length;
+        if (querySize == 0) revert ZeroQuery();
+
+        if (callBack == address(0) || lightClient == address(0))
             revert ZeroAddress();
+
+        if (!_checkSupportedInterface(callBack, lightClient)) {
+            revert CallbackOrLightClientDontSupportInterface();
         }
 
         if (msg.value < estimateFee(lightClient, queries)) {
             revert InvalidFee();
         }
 
-        for (uint i = 0; i < queries.length; i++) {
+        if (message.length == 0) {
+            message = bytes("");
+        }
+
+        for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
-            if (q.to == address(0)) {
-                revert ZeroAddress();
-            }
+            if (q.to == address(0)) revert ZeroAddress();
+            if (q.dstChainId == 0) revert InvalidInputZeroValue();
+            if (q.height == 0) revert InvalidInputZeroValue();
+            if (q.slot == bytes32(0)) revert InvalidInputEmptyBytes32();
         }
 
         ILightClient lc = ILightClient(lightClient);
@@ -182,10 +263,10 @@ contract Gateway is
             message,
             lightClient
         );
-        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, nonce));
+        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, _nonce));
 
         queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
-        nonce++;
+        ++_nonce;
 
         nativeTokenAmount = nativeTokenAmount + msg.value;
 
@@ -201,11 +282,13 @@ contract Gateway is
 
     /**
      * @notice This function is an endpoint for receiving query
+     * @dev This function is executed from Relayer, validates the Proof against the result of the Query,
+     * and returns it to the user's construct.
      * @param response query response data
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable onlyGelatoRelayERC2771 {
+    ) external payable virtual onlyGelatoRelayERC2771 {
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -237,9 +320,9 @@ contract Gateway is
             queryStore[queryId].status = QueryStatus.Failed;
             revert InvalidProof(queryId);
         }
-
         // save results
-        for (uint i = 0; i < results.length; i++) {
+        uint256 resultSize = results.length;
+        for (uint i; i < resultSize; i++) {
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
             bytes32 storeKey = keccak256(
@@ -268,19 +351,8 @@ contract Gateway is
     }
 
     /**
-     * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
-     * @param lightClient The light client contract address
-     * @param queries query data
-     */
-    function estimateFee(
-        address lightClient,
-        QueryType.QueryRequest[] memory queries
-    ) public view returns (uint256) {
-        return 0;
-    }
-
-    /**
      * @notice Accessing past query results
+     * @dev This function returns the past query data stored in the queryStore.
      * @param queries Query request
      * @return bytes[] Query results
      */
@@ -288,7 +360,8 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        require(querySize <= 100, "Futaba: Too many queries");
+        if (querySize > _MAX_QUERY_COUNT) revert TooManyQueries();
+
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
@@ -302,7 +375,7 @@ contract Gateway is
 
             // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
-                uint256 highestHeight = 0;
+                uint256 highestHeight;
                 bytes memory result;
                 for (uint j; j < resultStoreSize; j++) {
                     if (resultStore[storeKey][j].height > highestHeight) {
@@ -326,33 +399,69 @@ contract Gateway is
 
     /**
      * @notice Get the status of the query
+     * @dev This function returns the status of the query.
      * @param queryId Unique id to access query state
+     * @return QueryStatus The status of the query
      */
     function getQueryStatus(
         bytes32 queryId
     ) external view returns (QueryStatus) {
-        return _getQueryStatus(queryId);
+        return queryStore[queryId].status;
     }
 
     /**
      * @notice Withdraw native token from the contract
+     * @dev This function withdraws native token from the contract.
      */
     function withdraw() external onlyOwner {
-        address payable to = payable(msg.sender);
-        (bool sent, bytes memory data) = to.call{value: nativeTokenAmount}("");
-        require(sent, "Futaba: Failed to withdraw native token");
-        uint256 amount = nativeTokenAmount;
+        uint256 withdrawAmount = nativeTokenAmount;
         nativeTokenAmount = 0;
-        emit Withdraw(to, amount);
+
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        if (!success) revert InvalidWithdraw();
+
+        emit Withdraw(msg.sender, withdrawAmount);
     }
 
     /**
-     * @notice Get the status of the query
-     * @param queryId Unique id to access query state
+     * @notice Get the current nonce
+     * @return nonce
      */
-    function _getQueryStatus(
-        bytes32 queryId
-    ) internal view returns (QueryStatus) {
-        return queryStore[queryId].status;
+    function getNonce() external view returns (uint256) {
+        return _nonce;
+    }
+
+    /* ----------------------------- Public Functions -------------------------------- */
+
+    /**
+     * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
+     * @dev This function returns the estimated fee
+     * (In the future, we will also access the LightClient contract to obtain unique fees).
+     * @param lightClient The light client contract address
+     * @param queries query data
+     * @return uint256 The estimated fee
+     */
+    function estimateFee(
+        address lightClient,
+        QueryType.QueryRequest[] memory queries
+    ) public view returns (uint256) {
+        return 0;
+    }
+
+    /* ----------------------------- Private Functions -------------------------------- */
+
+    /**
+     * @notice Check whether the target Callback and LightClient addresses support the respective Interfaces.
+     * @param callBackAddress The callback contract address
+     * @param lightClient The light client contract address
+     * @return bool Whether the target Callback and LightClient addresses support the respective Interfaces
+     */
+    function _checkSupportedInterface(
+        address callBackAddress,
+        address lightClient
+    ) private view returns (bool) {
+        return
+            IERC165(callBackAddress).supportsInterface(_IRECEIVER_ID) &&
+            IERC165(lightClient).supportsInterface(_ILIGHT_CLIENT_ID);
     }
 }

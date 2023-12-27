@@ -83,7 +83,7 @@ export const getStorageProof = async (rpcURL: string, src: string, blockNumber: 
   }
 }
 
-export const setOrcale = async (lcMock: LightClientMock, oracle: string) => {
+export const setOracle = async (lcMock: LightClientMock, oracle: string) => {
   const tx = await lcMock.setOracle(oracle)
   const resTx = await tx.wait()
   console.log(resTx)
@@ -108,7 +108,7 @@ export const setSource = async (lcMock: LightClientMock) => {
 }
 
 export const setup = async (lcMock: LightClientMock, functionMock: FunctionsMock) => {
-  await setOrcale(lcMock, functionMock.address)
+  await setOracle(lcMock, functionMock.address)
   await setLightClient(functionMock, lcMock.address)
   await setSource(lcMock)
   await setSubscriptionId(lcMock, 0)
