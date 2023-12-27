@@ -16,7 +16,7 @@ task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
       console.log(`Deploying oracle...`);
       const jobId = hre.ethers.utils.hexlify(hre.ethers.utils.hexZeroPad(hre.ethers.utils.toUtf8Bytes(oracleConfig.jobId), 32));
       const linkToken = oracleConfig.token;
-      const oracle = await Oracle.deploy(linkToken, jobId, taskArgs.operator, parseEther("0.01"), client);
+      const oracle = await Oracle.deploy(linkToken, jobId, taskArgs.operator, parseEther("0.001"), client);
       await oracle.deployed();
       console.log(`Oracle deployed to: `, oracle.address);
 

@@ -57,7 +57,7 @@ describe("ChainlinkLightClient", async function () {
     await aggregatorV3Mock.deployed()
 
     const ChainlinkLightClientMock = await ethers.getContractFactory("ChainlinkLightClientMock")
-    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
+    chainlinkLightClientMock = await ChainlinkLightClientMock.deploy(gateway.address, oracleMock.address, aggregatorV3Mock.address, gasData.gasLimit, gasData.gasPrice, gasData.gasPerQuery)
     await chainlinkLightClientMock.deployed()
 
     const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClient")
@@ -126,7 +126,7 @@ describe("ChainlinkLightClient", async function () {
       queryRequests.push({ dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] })
     }
 
-    await expect(chainlinkLightClientMock.requestQuery(queryRequests)).to.be.revertedWith("Futaba: Too many queries")
+    await expect(chainlinkLightClientMock.requestQuery(queryRequests)).to.be.revertedWithCustomError(chainlinkLightClient, "TooManyQueries")
   })
 
 
@@ -296,6 +296,18 @@ describe("ChainlinkLightClient", async function () {
         '0x0000000000000000000000000000000000000000000000000000000000000000'
       ]
     ])
+  })
+
+  it("setOracle() - zero address", async function () {
+    expect(chainlinkLightClient.setOracle(ethers.constants.AddressZero)).to.be.revertedWithCustomError(chainlinkLightClient, "ZeroAddressNotAllowed")
+  })
+
+  it("setOracle() - onlyOwner", async function () {
+    expect(chainlinkLightClientMock.connect(otherSingners[0]).setOracle(oracleMock.address)).to.be.revertedWith("Ownable: caller is not the owner")
+  })
+
+  it("setOracle()", async function () {
+    expect(chainlinkLightClient.setOracle(oracleMock.address)).to.emit(chainlinkLightClient, "SetOracle").withArgs(oracleMock.address)
   })
 
   it("getOracle()", async function () {

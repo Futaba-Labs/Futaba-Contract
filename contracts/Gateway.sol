@@ -1,20 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
-import "./interfaces/IGateway.sol";
-import "./interfaces/ILightClient.sol";
-import "./interfaces/IReceiver.sol";
-import "./QueryType.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-import "hardhat/console.sol";
+import {IGateway} from "./interfaces/IGateway.sol";
+import {ILightClient} from "./interfaces/ILightClient.sol";
+import {IReceiver} from "./interfaces/IReceiver.sol";
+import {QueryType} from "./QueryType.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /**
  * @title Gateway contract
@@ -22,26 +17,27 @@ import "hardhat/console.sol";
  * @notice NOT AUDITED
  */
 
-// #TODO: Add @notice & @param description for each: FUNCTION + EVENT + ERROR declaration
 contract Gateway is
     IGateway,
-    GelatoRelayContextERC2771,
     Initializable,
     UUPSUpgradeable,
     Ownable2StepUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    using Address for address payable;
+    /* ----------------------------- Public Storages -------------------------------- */
 
-    /* ----------------------------- Public Storage -------------------------------- */
+    // Interface id of ILightClient
+    bytes4 private constant _ILIGHT_CLIENT_ID = 0xaba23c56;
+    // Interface id of IReceiver
+    bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
 
     uint256 public constant MAX_PROTOCOL_FEE = 1 ether; // 1 ETH
 
-    bytes4 private constant _ILight_Client_Id = 0xaba23c56;
-    bytes4 private constant _IReceiver_Id = 0xb1f586d1;
+    uint256 private constant _MAX_QUERY_COUNT = 100;
+    uint256 private constant _MAX_RELAYER_COUNT = 10;
 
     // nonce for query id
-    uint64 private nonce;
+    uint256 private _nonce;
 
     // Protocol fee
     uint256 public protocolFee;
@@ -70,7 +66,10 @@ contract Gateway is
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
 
-    /* ----------------------------- EVENTS -------------------------------- */
+    // relayer address => bool
+    mapping(address => bool) public approvedRelayers;
+
+    /* ----------------------------- Events -------------------------------- */
 
     /**
      * @notice This event is emitted when a query is sent
@@ -138,7 +137,21 @@ contract Gateway is
      */
     event UpdateProtocolFee(uint256 protocolFee);
 
-    /* ----------------------------- ERRORS -------------------------------- */
+    /**
+     * @notice This event is emitted when relayers are set
+     * @param owner The owner of the contract
+     * @param relayer The relayer address
+     */
+    event SetRelayer(address owner, address relayer);
+
+    /**
+     * @notice This event is emitted when relayers are removed
+     * @param owner The owner of the contract
+     * @param relayer The relayer address
+     */
+    event RemoveRelayer(address owner, address relayer);
+
+    /* ----------------------------- Errors -------------------------------- */
 
     /**
      * @notice Error if input is invalid
@@ -150,10 +163,6 @@ contract Gateway is
      */
     error InvalidInputZeroValue();
 
-    /**
-     * @notice Error if input is not bytes32
-     */
-    error InvalidInputEmptyBytes32();
     /**
      * @notice Error if address is zero
      */
@@ -192,25 +201,63 @@ contract Gateway is
      */
     error MaxProtocolFeeExceeded();
 
-    /* ----------------------------- INITIALIZER -------------------------------- */
+    /**
+     * @notice Error if too many queries
+     */
+    error TooManyQueries();
 
-    function initialize(
-        uint64 _nonce,
-        uint256 _protocolFee
-    ) public initializer {
+    /**
+     * @notice Error if query size is zero
+     */
+    error ZeroQuery();
+
+    /**
+     * @notice Error if withdraw failed
+     */
+    error InvalidWithdraw();
+
+    /**
+     * @notice Error if too many relayers
+     */
+    error TooManyRelayers();
+
+    /**
+     * @notice Error if relayer is invalid
+     */
+    error InvalidRelayer();
+
+    /* ----------------------------- Initializer -------------------------------- */
+
+    /**
+     * @notice Initialize the contract
+     * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
+     * @param nonce nonce for query id
+     * @param protocolFee The protocol fee
+     */
+
+    function initialize(uint256 nonce, uint256 protocolFee) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
 
-        nonce = _nonce;
-        setProtocolFee(_protocolFee);
+        _nonce = nonce;
+        setProtocolFee(protocolFee);
     }
 
+    ///@custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /**
+     * @dev Override to support UUPS.
+     */
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
-    /* ----------------------------- EXTERNAL FUNCTION -------------------------------- */
+    /* ----------------------------- External Functions -------------------------------- */
 
     /**
      * @notice This contract is an endpoint for executing query
+     * @dev This function stores query information and emit events to be communicated off-chain.
      * @param queries query data
      * @param lightClient The light client contract address
      * @param callBack The callback contract address
@@ -222,6 +269,9 @@ contract Gateway is
         address callBack,
         bytes memory message
     ) external payable nonReentrant {
+        uint256 querySize = queries.length;
+        if (querySize == 0) revert ZeroQuery();
+
         if (callBack == address(0) || lightClient == address(0))
             revert ZeroAddress();
 
@@ -237,12 +287,11 @@ contract Gateway is
             message = bytes("");
         }
 
-        for (uint i = 0; i < queries.length; i++) {
+        for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
             if (q.to == address(0)) revert ZeroAddress();
             if (q.dstChainId == 0) revert InvalidInputZeroValue();
             if (q.height == 0) revert InvalidInputZeroValue();
-            if (q.slot == bytes32(0)) revert InvalidInputEmptyBytes32();
         }
 
         ILightClient lc = ILightClient(lightClient);
@@ -254,10 +303,10 @@ contract Gateway is
             message,
             lightClient
         );
-        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, nonce));
+        bytes32 queryId = keccak256(abi.encodePacked(encodedPayload, _nonce));
 
         queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
-        nonce++;
+        ++_nonce;
 
         nativeTokenAmount = nativeTokenAmount + msg.value;
 
@@ -273,11 +322,15 @@ contract Gateway is
 
     /**
      * @notice This function is an endpoint for receiving query
+     * @dev This function is executed from Relayer, validates the Proof against the result of the Query,
+     * and returns it to the user's construct.
      * @param response query response data
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable onlyGelatoRelayERC2771 {
+    ) external payable virtual {
+        if (!approvedRelayers[msg.sender]) revert InvalidRelayer();
+
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -309,9 +362,9 @@ contract Gateway is
             queryStore[queryId].status = QueryStatus.Failed;
             revert InvalidProof(queryId);
         }
-
         // save results
-        for (uint i = 0; i < results.length; i++) {
+        uint256 resultSize = results.length;
+        for (uint i; i < resultSize; i++) {
             QueryType.QueryRequest memory q = queries[i];
             bytes memory result = results[i];
             bytes32 storeKey = keccak256(
@@ -332,15 +385,11 @@ contract Gateway is
             emit ReceiverError(queryId, bytes(reason));
             queryStore[queryId].status = QueryStatus.Failed;
         }
-
-        // refund relay fee
-        nativeTokenAmount = nativeTokenAmount - _getFee();
-
-        _transferRelayFee();
     }
 
     /**
      * @notice Accessing past query results
+     * @dev This function returns the past query data stored in the queryStore.
      * @param queries Query request
      * @return bytes[] Query results
      */
@@ -348,7 +397,8 @@ contract Gateway is
         QueryType.QueryRequest[] memory queries
     ) external view returns (bytes[] memory) {
         uint256 querySize = queries.length;
-        require(querySize <= 100, "Futaba: Too many queries");
+        if (querySize > _MAX_QUERY_COUNT) revert TooManyQueries();
+
         bytes[] memory cache = new bytes[](querySize);
         for (uint i; i < querySize; i++) {
             QueryType.QueryRequest memory q = queries[i];
@@ -362,7 +412,7 @@ contract Gateway is
 
             // If height is 0, the latest block height data can be obtained
             if (q.height == 0) {
-                uint256 highestHeight = 0;
+                uint256 highestHeight;
                 bytes memory result;
                 for (uint j; j < resultStoreSize; j++) {
                     if (resultStore[storeKey][j].height > highestHeight) {
@@ -386,23 +436,26 @@ contract Gateway is
 
     /**
      * @notice Get the status of the query
+     * @dev This function returns the status of the query.
      * @param queryId Unique id to access query state
+     * @return QueryStatus The status of the query
      */
     function getQueryStatus(
         bytes32 queryId
     ) external view returns (QueryStatus) {
-        return _getQueryStatus(queryId);
+        return queryStore[queryId].status;
     }
 
     /**
      * @notice Withdraw native token from the contract
+     * @dev This function withdraws native token from the contract.
      */
     function withdraw() external onlyOwner {
         uint256 withdrawAmount = nativeTokenAmount;
         nativeTokenAmount = 0;
 
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        require(success, "Futaba: Failed to withdraw native token");
+        if (!success) revert InvalidWithdraw();
 
         emit Withdraw(msg.sender, withdrawAmount);
     }
@@ -411,16 +464,47 @@ contract Gateway is
      * @notice Get the current nonce
      * @return nonce
      */
-    function getNonce() external view returns (uint64) {
-        return nonce;
+    function getNonce() external view returns (uint256) {
+        return _nonce;
     }
 
-    /* ----------------------------- PUBLIC FUNCTION -------------------------------- */
+    /**
+     * @notice Set the relayers
+     * @param relayers The relayer addresses
+     */
+    function setRelayers(address[] memory relayers) external onlyOwner {
+        uint256 relayerSize = relayers.length;
+        if (relayerSize > _MAX_RELAYER_COUNT) revert TooManyRelayers();
+
+        for (uint256 i; i < relayerSize; i++) {
+            approvedRelayers[relayers[i]] = true;
+            emit SetRelayer(msg.sender, relayers[i]);
+        }
+    }
+
+    /**
+     * @notice Remove the relayers
+     * @param relayers The relayer addresses
+     */
+    function removeRelayers(address[] memory relayers) external onlyOwner {
+        uint256 relayerSize = relayers.length;
+        if (relayerSize > _MAX_RELAYER_COUNT) revert TooManyRelayers();
+
+        for (uint256 i; i < relayerSize; i++) {
+            approvedRelayers[relayers[i]] = false;
+            emit RemoveRelayer(msg.sender, relayers[i]);
+        }
+    }
+
+    /* ----------------------------- Public Functions -------------------------------- */
 
     /**
      * @notice This function is used to estimate the cost of gas (No transaction fees charged at this time)
+     * @dev This function returns the estimated fee
+     * (In the future, we will also access the LightClient contract to obtain unique fees).
      * @param lightClient The light client contract address
      * @param queries query data
+     * @return uint256 The estimated fee
      */
     function estimateFee(
         address lightClient,
@@ -446,24 +530,20 @@ contract Gateway is
         emit UpdateProtocolFee(_protocolFee);
     }
 
-    /* ----------------------------- INTERNAL FUNCTION -------------------------------- */
+    /* ----------------------------- Private Functions -------------------------------- */
 
     /**
-     * @notice Get the status of the query
-     * @param queryId Unique id to access query state
+     * @notice Check whether the target Callback and LightClient addresses support the respective Interfaces.
+     * @param callBackAddress The callback contract address
+     * @param lightClient The light client contract address
+     * @return bool Whether the target Callback and LightClient addresses support the respective Interfaces
      */
-    function _getQueryStatus(
-        bytes32 queryId
-    ) internal view returns (QueryStatus) {
-        return queryStore[queryId].status;
-    }
-
     function _checkSupportedInterface(
         address callBackAddress,
         address lightClient
-    ) internal view returns (bool) {
+    ) private view returns (bool) {
         return
-            IERC165(callBackAddress).supportsInterface(_IReceiver_Id) &&
-            IERC165(lightClient).supportsInterface(_ILight_Client_Id);
+            IERC165(callBackAddress).supportsInterface(_IRECEIVER_ID) &&
+            IERC165(lightClient).supportsInterface(_ILIGHT_CLIENT_ID);
     }
 }

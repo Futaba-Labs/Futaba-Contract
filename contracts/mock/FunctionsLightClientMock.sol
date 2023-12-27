@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
 import "../interfaces/ILightClient.sol";
 import "../interfaces/IChainlinkLightClient.sol";
@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "../QueryType.sol";
-
-import "hardhat/console.sol";
 
 contract FunctionsLightClientMock is
     ILightClient,

@@ -16,8 +16,9 @@ const gasData = {
 task("TASK_SETUP_CONTRACT", "Setup all contract")
   .addParam<boolean>("gateway", "Deploy gateway contract", false, types.boolean)
   .addParam<boolean>("oracle", "Deploy oracle contract", false, types.boolean)
-  .addParam<boolean>("client", "Deploy ligth client contract", false, types.boolean)
+  .addParam<boolean>("client", "Deploy light client contract", false, types.boolean)
   .addParam<boolean>("operator", "Deploy operator contract", false, types.boolean)
+  .addParam<boolean>("verify", "Deploy operator contract", false, types.boolean)
   .setAction(
     async (taskArgs, hre): Promise<null> => {
 
@@ -27,20 +28,25 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
 
       let gateway: any, oracle: any, client: any, operator: any, deployments: any;
 
-      const isGatewayDepolyed = taskArgs.gateway, isOracleDepolyed = taskArgs.oracle, isClientDepolyed = taskArgs.client, isOperatorDepolyed = taskArgs.operator;
+      const isGatewayDeployed = taskArgs.gateway,
+        isOracleDeployed = taskArgs.oracle,
+        isClientDeployed = taskArgs.client,
+        isOperatorDeployed = taskArgs.operator;
 
       // Read deployments.json
       const data = await fs.promises.readFile(FILE_PATH, 'utf8');
       deployments = JSON.parse(data.toString());
 
-      if (isGatewayDepolyed) {
-        gateway = await hre.run("TASK_DEPLOY_GATEWAY", { fee: protocolFee, verify: false })
+      const verify = taskArgs.verify;
+
+      if (isGatewayDeployed) {
+        gateway = await hre.run("TASK_DEPLOY_GATEWAY", { fee: protocolFee, verify })
       } else {
         gateway = deployments[hre.network.name as keyof typeof DEPLOYMENT].gateway;
         console.log("Already deployed Gateway Contract:", gateway)
       }
 
-      if (isClientDepolyed) {
+      if (isClientDeployed) {
         const feed = ORACLE[hre.network.name as keyof typeof ORACLE].feed;
         client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, oracle: gateway, feed, gaslimit: gasData.gasLimit, gasprice: gasData.gasPrice, gasperquery: gasData.gasPerQuery, verify: false })
       } else {
@@ -48,26 +54,25 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
         console.log("Already deployed LightClient Contract:", client)
       }
 
-      if (isOperatorDepolyed) {
-        operator = await hre.run("TASK_DEPLOY_OPERATOR", { verify: false })
+      if (isOperatorDeployed) {
+        operator = await hre.run("TASK_DEPLOY_OPERATOR", { verify })
       } else {
         operator = deployments[hre.network.name as keyof typeof DEPLOYMENT].operator;
         console.log("Already deployed Operator Contract:", operator)
       }
 
-      if (isOracleDepolyed) {
-        oracle = await hre.run("TASK_DEPLOY_ORACLE", { verify: false, client, operator })
+      if (isOracleDeployed) {
+        oracle = await hre.run("TASK_DEPLOY_ORACLE", { verify, client, operator })
       } else {
         oracle = deployments[hre.network.name as keyof typeof DEPLOYMENT].oracle;
         console.log("Already deployed Oracle Contract:", oracle)
       }
 
-
-      if (isClientDepolyed || isOracleDepolyed) {
+      if (isClientDeployed || isOracleDeployed) {
         await hre.run("TASK_SET_ORACLE", { oracle, client })
       }
 
-      if (isOperatorDepolyed || isOracleDepolyed) {
+      if (isOperatorDeployed || isOracleDeployed) {
         await hre.run("TASK_SET_CHAINLINK_ORACLE", { oracle, operator })
         await hre.run("TASK_SET_SENDER", { operator, oracle })
       }

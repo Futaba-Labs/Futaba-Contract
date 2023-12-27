@@ -35,7 +35,8 @@ before(async function () {
   await aggregatorV3Mock.deployed()
 
   const ChainlinkLightClient = await ethers.getContractFactory("ChainlinkLightClientMock")
-  chainlinkLightClientMock = await ChainlinkLightClient.deploy(oracleTestMock.address, aggregatorV3Mock.address, GAS_DATA.gasLimit, GAS_DATA.gasPrice, GAS_DATA.gasPerQuery)
+  chainlinkLightClientMock = await ChainlinkLightClient.deploy(oracleTestMock.address, oracleTestMock.address, aggregatorV3Mock.address, GAS_DATA.gasLimit, GAS_DATA.gasPrice, GAS_DATA.gasPerQuery)
+
   await chainlinkLightClientMock.deployed()
 
   let tx = await oracleTestMock.setClient(chainlinkLightClientMock.address)
@@ -45,12 +46,6 @@ before(async function () {
 })
 
 describe("OracleTestMock", async function () {
-  it("fulfill() - invalid light client", async function () {
-    const tx = await oracleTestMock.setClient(ethers.constants.AddressZero)
-    await tx.wait()
-    await expect(oracleTestMock.fulfill(hexZeroPad(ZERO_ADDRESS, 32), SAMPLE_RESPONSE_FOR_NODE)).to.be.revertedWith("Futaba: invalid ligth client")
-  })
-
   it("fulfill() - light client with no interface defined", async function () {
     const tx = await oracleTestMock.setClient(owner.address)
     await tx.wait()

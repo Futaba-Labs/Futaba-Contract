@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
 // slightly modified https://github.com/bakaoh/solidity-rlp-encode/blob/59f7ed4f747bdc7b95b6f9748304b8c8c8967a0f/contracts/RLPEncode.sol
 
@@ -138,7 +138,6 @@ library RLPEncode {
 
     /**
      * @dev Encode integer in big endian binary form with no leading zeroes.
-     * @notice TODO: This should be optimized with assembly to save gas costs.
      * @param _x The integer to encode.
      * @return RLP encoded bytes.
      */
@@ -148,13 +147,14 @@ library RLPEncode {
             mstore(add(b, 32), _x)
         }
         uint i;
-        for (i = 0; i < 32; i++) {
+        for (i; i < 32; i++) {
             if (b[i] != 0) {
                 break;
             }
         }
         bytes memory res = new bytes(32 - i);
-        for (uint j = 0; j < res.length; j++) {
+        uint256 resLength = res.length;
+        for (uint j; j < resLength; j++) {
             res[j] = b[i++];
         }
         return res;
@@ -201,7 +201,8 @@ library RLPEncode {
 
         uint len;
         uint i;
-        for (i = 0; i < _list.length; i++) {
+        uint256 listSize = _list.length;
+        for (i; i < listSize; i++) {
             len += _list[i].length;
         }
 
@@ -211,7 +212,7 @@ library RLPEncode {
             flattenedPtr := add(flattened, 0x20)
         }
 
-        for (i = 0; i < _list.length; i++) {
+        for (i; i < listSize; i++) {
             bytes memory item = _list[i];
 
             uint listPtr;

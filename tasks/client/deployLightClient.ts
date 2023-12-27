@@ -27,10 +27,11 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
       console.log(`Deploying light client...`);
       const client = await LigthClient.deploy(gateway, oracle, feed, gasLimit, gasPrice, gasPerQuery);
       await client.deployed();
-      console.log(`LigthClient deployed to: `, client.address);
+      console.log(`LightClient deployed to: `, client.address);
       if (taskArgs.verify) {
         await hre.run("TASK_VERIFY", {
-          address: client.address
+          address: client.address,
+          arguments: [gateway, oracle]
         });
       }
       await new Promise(f => setTimeout(f, 10000))

@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.19;
 
-import "../interfaces/IReceiver.sol";
-import "../QueryType.sol";
+import {IReceiver} from "../interfaces/IReceiver.sol";
+import {QueryType} from "../QueryType.sol";
 
 /**
  * @title ReceiverBadMock contract
