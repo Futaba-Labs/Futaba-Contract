@@ -337,4 +337,17 @@ describe("ChainlinkLightClient", async function () {
     const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee)
     expect(await chainlinkLightClient.estimateFee(queries)).to.equal(fee)
   })
+
+  it("estimateQueryFee()", async function () {
+    const slots = getSlots()
+
+    const queries: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: SRC, height: HEIGTH, slot: slots[1] }
+    ]
+
+    // calculate fee
+    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice)
+    expect(await chainlinkLightClient.estimateQueryFee(queries)).to.equal(fee)
+  })
 })

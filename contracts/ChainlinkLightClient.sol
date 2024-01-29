@@ -370,10 +370,7 @@ contract ChainlinkLightClient is
     function estimateFee(
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256) {
-        if (queries.length > _MAX_QUERY_COUNT) revert TooManyQueries();
-
-        uint256 queryFee = ((gasData.gasPerQuery * queries.length) +
-            gasData.gasLimit) * gasData.gasPrice; // Gas fee
+        uint256 queryFee = estimateQueryFee(queries);
 
         // Oracle fee calculation
         // Assuming Chainlink's data feed contract is already deployed and its address is stored in a state variable named `chainlinkDataFeed`
@@ -421,6 +418,17 @@ contract ChainlinkLightClient is
     }
 
     /* ----------------------------- Public Functions -------------------------------- */
+
+    function estimateQueryFee(
+        QueryType.QueryRequest[] memory queries
+    ) public view returns (uint256) {
+        if (queries.length > _MAX_QUERY_COUNT) revert TooManyQueries();
+
+        uint256 queryFee = ((gasData.gasPerQuery * queries.length) +
+            gasData.gasLimit) * gasData.gasPrice; // Gas fee
+
+        return queryFee;
+    }
 
     /**
      * @notice Set the oracle address

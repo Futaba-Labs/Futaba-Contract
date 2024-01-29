@@ -48,7 +48,7 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
 
       if (isClientDeployed) {
         const feed = ORACLE[hre.network.name as keyof typeof ORACLE].feed;
-        client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, oracle: gateway, feed, gaslimit: gasData.gasLimit, gasprice: gasData.gasPrice, gasperquery: gasData.gasPerQuery, verify: false })
+        client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, oracle: gateway, feed, gaslimit: gasData.gasLimit, gasprice: gasData.gasPrice, gasperquery: gasData.gasPerQuery, verify })
       } else {
         client = deployments[hre.network.name as keyof typeof DEPLOYMENT]["light_client"];
         console.log("Already deployed LightClient Contract:", client)

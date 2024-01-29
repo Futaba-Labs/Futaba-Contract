@@ -19,4 +19,8 @@ interface ILightClient is IERC165 {
     function estimateFee(
         QueryType.QueryRequest[] memory queries
     ) external view returns (uint256);
+
+    function estimateQueryFee(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (uint256);
 }

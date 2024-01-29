@@ -27,7 +27,7 @@ contract Gateway is
     /* ----------------------------- Public Storages -------------------------------- */
 
     // Interface id of ILightClient
-    bytes4 private constant _ILIGHT_CLIENT_ID = 0xaba23c56;
+    bytes4 private constant _ILIGHT_CLIENT_ID = 0x4da71151;
     // Interface id of IReceiver
     bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
 
@@ -43,7 +43,7 @@ contract Gateway is
     uint256 public protocolFee;
 
     // Amount of native tokens in this contract
-    uint256 public nativeTokenAmount;
+    uint256 public protocolAmount;
 
     enum QueryStatus {
         Pending, // Waiting for query results
@@ -68,6 +68,12 @@ contract Gateway is
 
     // relayer address => bool
     mapping(address => bool) public approvedRelayers;
+
+    // query id => fee
+    mapping(bytes32 => uint256) public queryFees;
+
+    // relayer address => balance
+    mapping(address => uint256) public relayerBalances;
 
     /* ----------------------------- Events -------------------------------- */
 
@@ -212,9 +218,9 @@ contract Gateway is
     error ZeroQuery();
 
     /**
-     * @notice Error if withdraw failed
+     * @notice Error if transfer failed
      */
-    error InvalidWithdraw();
+    error InvalidTransfer();
 
     /**
      * @notice Error if too many relayers
@@ -278,8 +284,8 @@ contract Gateway is
         if (!_checkSupportedInterface(callBack, lightClient)) {
             revert CallbackOrLightClientDontSupportInterface();
         }
-
-        if (msg.value < estimateFee(lightClient, queries)) {
+        uint256 totalFee = estimateFee(lightClient, queries);
+        if (msg.value < totalFee) {
             revert InvalidFee();
         }
 
@@ -308,7 +314,18 @@ contract Gateway is
         queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
         ++_nonce;
 
-        nativeTokenAmount = nativeTokenAmount + msg.value;
+        // Save query fee
+        uint256 queryFee = ILightClient(lightClient).estimateQueryFee(queries);
+        queryFees[queryId] = queryFee;
+
+        protocolAmount = protocolAmount + (totalFee - queryFee);
+
+        // Return overpayment
+        uint256 overPayment = msg.value - totalFee;
+        if (overPayment > 0) {
+            (bool success, ) = payable(tx.origin).call{value: overPayment}("");
+            if (!success) revert InvalidTransfer();
+        }
 
         emit Packet(
             tx.origin,
@@ -328,7 +345,7 @@ contract Gateway is
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable virtual {
+    ) external payable virtual onlyApprovedRelayer {
         if (!approvedRelayers[msg.sender]) revert InvalidRelayer();
 
         bytes32 queryId = response.queryId;
@@ -385,6 +402,10 @@ contract Gateway is
             emit ReceiverError(queryId, bytes(reason));
             queryStore[queryId].status = QueryStatus.Failed;
         }
+
+        // pay relayer
+        uint256 queryFee = queryFees[queryId];
+        relayerBalances[msg.sender] = relayerBalances[msg.sender] + queryFee;
     }
 
     /**
@@ -451,11 +472,21 @@ contract Gateway is
      * @dev This function withdraws native token from the contract.
      */
     function withdraw() external onlyOwner {
-        uint256 withdrawAmount = nativeTokenAmount;
-        nativeTokenAmount = 0;
+        uint256 withdrawAmount = protocolAmount;
+        protocolAmount = 0;
 
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        if (!success) revert InvalidWithdraw();
+        if (!success) revert InvalidTransfer();
+
+        emit Withdraw(msg.sender, withdrawAmount);
+    }
+
+    function withdrawRelayerBalance() external {
+        uint256 withdrawAmount = relayerBalances[msg.sender];
+        relayerBalances[msg.sender] = 0;
+
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        if (!success) revert InvalidTransfer();
 
         emit Withdraw(msg.sender, withdrawAmount);
     }
@@ -545,5 +576,12 @@ contract Gateway is
         return
             IERC165(callBackAddress).supportsInterface(_IRECEIVER_ID) &&
             IERC165(lightClient).supportsInterface(_ILIGHT_CLIENT_ID);
+    }
+
+    /* ----------------------------- Modifiers -------------------------------- */
+
+    modifier onlyApprovedRelayer() {
+        if (!approvedRelayers[msg.sender]) revert InvalidRelayer();
+        _;
     }
 }

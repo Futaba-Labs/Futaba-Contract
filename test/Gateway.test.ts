@@ -373,6 +373,56 @@ describe("Gateway", async function () {
     })
   })
 
+  it("query() - over payment", async function () {
+    const slots = getSlots()
+    const src = SRC
+    const callBack = receiverMock.address
+    const lightClient = chainlinkLightClient.address
+    const message = MESSAGE
+
+    const queries: QueryType.QueryRequestStruct[] = [
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[0] },
+      { dstChainId: DSTCHAINID, to: src, height: HEIGTH, slot: slots[1] }
+    ]
+    const encodedQuery = ethers.utils.defaultAbiCoder.encode(["address", "tuple(uint32 dstChainId, address to, uint256 height, bytes32 slot)[]", "bytes", "address"], [callBack, queries, message, lightClient])
+
+    // calculate queryId
+    const nonce = await gateway.getNonce()
+    const queryId = keccak256(solidityPack(["bytes", "uint256"], [encodedQuery, nonce]))
+
+    const fee = await gateway.estimateFee(lightClient, queries)
+    const additionalFee = ethers.utils.parseEther("0.1")
+
+    const oldOwnerBalance = await ethers.provider.getBalance(owner.address)
+
+    let tx = await gateway.query(queries, lightClient, callBack, message, { value: fee.add(additionalFee) })
+
+    const resTx: ContractReceipt = await tx.wait()
+    const newOwnerBalance = await ethers.provider.getBalance(owner.address)
+
+    expect(oldOwnerBalance.sub(newOwnerBalance)).to.be.equal(fee.add(resTx.gasUsed.mul(resTx.effectiveGasPrice)))
+
+    const oracle = await chainlinkLightClient.getOracle()
+    const requests = []
+
+    // Formatted to check Oracle events
+    for (const request of queries) {
+      requests.push({ dstChainId: request.dstChainId, height: request.height })
+    }
+
+    const encodedRequest = ethers.utils.defaultAbiCoder.encode(["tuple(uint32 dstChainId, uint256 height)[]"], [requests])
+    await expect(tx).to.emit(chainlinkLightClient, "NotifyOracle").withArgs(anyValue, oracle, encodedRequest);
+
+    const query = await gateway.queryStore(queryId)
+    expect(query.data).to.be.equal(encodedQuery)
+    expect(query.status).to.be.equal(0)
+
+    expect(await gateway.getNonce()).to.be.equal(nonce.add(1))
+
+    // check query status
+    expect(await gateway.getQueryStatus(queryId)).to.be.equal(0)
+  })
+
   // Process of pre-executing a request for a query
   async function requestQueryWithChainlinkNode(callBack: string = receiverMock.address, lightClient: string = chainlinkLightClient.address, message: string = MESSAGE, queries: QueryType.QueryRequestStruct[] = []) {
     const slots = getSlots()
@@ -587,10 +637,10 @@ describe("Gateway", async function () {
   })
 
   it("withdraw()", async function () {
-    const balance = await gateway.provider.getBalance(gateway.address)
+    const balance = await gateway.protocolAmount()
     await expect(gateway.connect(owner).withdraw()).to.emit(gateway, "Withdraw").withArgs(owner.address, balance);
 
-    const newBalance = await gateway.provider.getBalance(gateway.address)
+    const newBalance = await gateway.protocolAmount()
     expect(newBalance).to.be.equal(0)
   })
 
