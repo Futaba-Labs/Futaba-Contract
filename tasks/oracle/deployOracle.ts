@@ -24,7 +24,7 @@ task("TASK_DEPLOY_ORACLE", "Deploys the oracle contract")
         await new Promise(f => setTimeout(f, 10000))
         await hre.run("TASK_VERIFY", {
           address: oracle.address,
-          arguments: [linkToken]
+          arguments: [linkToken, jobId, taskArgs.operator, parseEther("0.001").toString(), client]
         });
       }
 

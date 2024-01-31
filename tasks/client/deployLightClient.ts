@@ -31,7 +31,7 @@ task("TASK_DEPLOY_LIGHT_CLIENT", "Deploys the light client contract")
       if (taskArgs.verify) {
         await hre.run("TASK_VERIFY", {
           address: client.address,
-          arguments: [gateway, oracle]
+          arguments: [gateway, oracle, feed, gasLimit.toString(), gasPrice.toString(), gasPerQuery.toString()]
         });
       }
       await new Promise(f => setTimeout(f, 10000))

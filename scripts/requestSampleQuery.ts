@@ -3,11 +3,7 @@ import { QueryType } from "../typechain-types/contracts/Gateway";
 import { MESSAGE } from "../test/utils/constants";
 import { BigNumber } from "ethers";
 import { concat, hexZeroPad, keccak256 } from "ethers/lib/utils";
-import { GelatoRelay } from "@gelatonetwork/relay-sdk";
 import DEPLOYMENTS from "../constants/deployments.json"
-import { ChainStage, Fee } from "@futaba-lab/sdk";
-
-const relay = new GelatoRelay();
 
 async function main() {
   const gatewayAddress = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS].gateway
@@ -26,7 +22,7 @@ async function main() {
 
   const usdcOnGoerli = "0xA2025B15a1757311bfD68cb14eaeFCc237AF5b43" // USDC on Goerli
   const linkOnOpGoerli = "0x14cd1A7b8c547bD4A2f531ba1BF11B6c4f2b96db" // LINK on Optimism Goerli
-  const callBack = "0x593983D05B6E3240A69160FEfaC44d84068e208A" // Mock Receiver
+  const callBack = "0x9D9AB95134aF0D7f468545E816f8b7E18407Eb26" // Mock Receiver
   const receiverMock = await ethers.getContractAt("ReceiverMock", callBack)
   const lightClient = DEPLOYMENTS[network.name as keyof typeof DEPLOYMENTS]["light_client"]
   const message = MESSAGE
@@ -44,8 +40,8 @@ async function main() {
   console.log("queries: ", JSON.stringify(queries))
 
   try {
-    const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
-    const fee = await sdk.estimateFee(queries.length)
+    // const sdk = new Fee({ chainId: 80001, stage: ChainStage.TESTNET })
+    const fee = await gateway.estimateFee(lightClient, queries)
     console.log("fee: ", fee.toString())
 
     // send transaction
