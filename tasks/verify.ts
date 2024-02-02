@@ -8,9 +8,13 @@ task(
   .setAction(async (taskArgs, hre): Promise<null> => {
     const address = taskArgs.address
 
-    await hre.run("verify:verify", {
-      address,
-      constructorArguments: taskArgs.arguments,
-    })
+    try {
+      await hre.run("verify:verify", {
+        address,
+        constructorArguments: taskArgs.arguments,
+      })
+    } catch (error) {
+      console.log(`Contract verify error: ${error}`)
+    }
     return null;
   });

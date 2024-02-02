@@ -201,6 +201,12 @@ contract FunctionsLightClientMock is
         return 0;
     }
 
+    function estimateQueryFee(
+        QueryType.QueryRequest[] memory queries
+    ) external view returns (uint256) {
+        return 0;
+    }
+
     function setOracle(address _oracle) public {
         oracle = _oracle;
         emit SetOracle(_oracle);

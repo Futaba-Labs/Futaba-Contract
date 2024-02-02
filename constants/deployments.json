@@ -1,8 +1,8 @@
 {
   "mumbai": {
-    "gateway": "0x3fab87824ABbe2DC686ed5CbB032d9c62E2fe179",
-    "light_client": "0xA171Ec7644385e3dcc5A68af62E6c317f210c7b9",
-    "oracle": "0x1F92ABbb3c7CF8D086375388490195C634509CC4",
+    "gateway": "0xDe913499273dc8767d2ffd51DE9861880E377682",
+    "light_client": "0x276411156f985DD9425A67dC9af9175E1261B640",
+    "oracle": "0xC67D013ef20028CE8afb2c77293FEcbfEEbe5483",
     "operator": "0x1f82B8da41bC099CB5A89cde1F2D0a68E6a50720",
     "link_token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB"
   },

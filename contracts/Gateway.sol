@@ -5,7 +5,6 @@ import {IGateway} from "./interfaces/IGateway.sol";
 import {ILightClient} from "./interfaces/ILightClient.sol";
 import {IReceiver} from "./interfaces/IReceiver.sol";
 import {QueryType} from "./QueryType.sol";
-import {GelatoRelayContextERC2771} from "@gelatonetwork/relay-context/contracts/GelatoRelayContextERC2771.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
@@ -20,7 +19,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract Gateway is
     IGateway,
-    GelatoRelayContextERC2771,
     Initializable,
     UUPSUpgradeable,
     Ownable2StepUpgradeable,
@@ -29,17 +27,23 @@ contract Gateway is
     /* ----------------------------- Public Storages -------------------------------- */
 
     // Interface id of ILightClient
-    bytes4 private constant _ILIGHT_CLIENT_ID = 0xaba23c56;
+    bytes4 private constant _ILIGHT_CLIENT_ID = 0x4da71151;
     // Interface id of IReceiver
     bytes4 private constant _IRECEIVER_ID = 0xb1f586d1;
 
+    uint256 public constant MAX_PROTOCOL_FEE = 1 ether; // 1 ETH
+
     uint256 private constant _MAX_QUERY_COUNT = 100;
+    uint256 private constant _MAX_RELAYER_COUNT = 10;
 
     // nonce for query id
     uint256 private _nonce;
 
+    // Protocol fee
+    uint256 public protocolFee;
+
     // Amount of native tokens in this contract
-    uint256 public nativeTokenAmount;
+    uint256 public protocolAmount;
 
     enum QueryStatus {
         Pending, // Waiting for query results
@@ -61,6 +65,15 @@ contract Gateway is
 
     // query id => Query
     mapping(bytes32 => Query) public queryStore;
+
+    // relayer address => bool
+    mapping(address => bool) public approvedRelayers;
+
+    // query id => fee
+    mapping(bytes32 => uint256) public queryFees;
+
+    // relayer address => balance
+    mapping(address => uint256) public relayerBalances;
 
     /* ----------------------------- Events -------------------------------- */
 
@@ -124,6 +137,26 @@ contract Gateway is
      */
     event Withdraw(address indexed to, uint256 amount);
 
+    /**
+     * @notice This event is emitted when the protocol fee is updated
+     * @param protocolFee The new protocol fee
+     */
+    event UpdateProtocolFee(uint256 protocolFee);
+
+    /**
+     * @notice This event is emitted when relayers are set
+     * @param owner The owner of the contract
+     * @param relayer The relayer address
+     */
+    event SetRelayer(address owner, address relayer);
+
+    /**
+     * @notice This event is emitted when relayers are removed
+     * @param owner The owner of the contract
+     * @param relayer The relayer address
+     */
+    event RemoveRelayer(address owner, address relayer);
+
     /* ----------------------------- Errors -------------------------------- */
 
     /**
@@ -136,10 +169,6 @@ contract Gateway is
      */
     error InvalidInputZeroValue();
 
-    /**
-     * @notice Error if input is not bytes32
-     */
-    error InvalidInputEmptyBytes32();
     /**
      * @notice Error if address is zero
      */
@@ -174,6 +203,11 @@ contract Gateway is
     error CallbackOrLightClientDontSupportInterface();
 
     /**
+     * @notice Error if max protocol fee is exceeded
+     */
+    error MaxProtocolFeeExceeded();
+
+    /**
      * @notice Error if too many queries
      */
     error TooManyQueries();
@@ -184,9 +218,19 @@ contract Gateway is
     error ZeroQuery();
 
     /**
-     * @notice Error if withdraw failed
+     * @notice Error if transfer failed
      */
-    error InvalidWithdraw();
+    error InvalidTransfer();
+
+    /**
+     * @notice Error if too many relayers
+     */
+    error TooManyRelayers();
+
+    /**
+     * @notice Error if relayer is invalid
+     */
+    error InvalidRelayer();
 
     /* ----------------------------- Initializer -------------------------------- */
 
@@ -194,12 +238,15 @@ contract Gateway is
      * @notice Initialize the contract
      * @dev Initialize Ownable2Step and ReentrancyGuard and set nonce to 1.
      * @param nonce nonce for query id
+     * @param protocolFee The protocol fee
      */
 
-    function initialize(uint256 nonce) public virtual initializer {
+    function initialize(uint256 nonce, uint256 protocolFee) public initializer {
         __Ownable2Step_init();
         __ReentrancyGuard_init();
+
         _nonce = nonce;
+        setProtocolFee(protocolFee);
     }
 
     ///@custom:oz-upgrades-unsafe-allow constructor
@@ -237,8 +284,8 @@ contract Gateway is
         if (!_checkSupportedInterface(callBack, lightClient)) {
             revert CallbackOrLightClientDontSupportInterface();
         }
-
-        if (msg.value < estimateFee(lightClient, queries)) {
+        uint256 totalFee = estimateFee(lightClient, queries);
+        if (msg.value < totalFee) {
             revert InvalidFee();
         }
 
@@ -251,7 +298,6 @@ contract Gateway is
             if (q.to == address(0)) revert ZeroAddress();
             if (q.dstChainId == 0) revert InvalidInputZeroValue();
             if (q.height == 0) revert InvalidInputZeroValue();
-            if (q.slot == bytes32(0)) revert InvalidInputEmptyBytes32();
         }
 
         ILightClient lc = ILightClient(lightClient);
@@ -268,7 +314,18 @@ contract Gateway is
         queryStore[queryId] = Query(encodedPayload, QueryStatus.Pending);
         ++_nonce;
 
-        nativeTokenAmount = nativeTokenAmount + msg.value;
+        // Save query fee
+        uint256 queryFee = ILightClient(lightClient).estimateQueryFee(queries);
+        queryFees[queryId] = queryFee;
+
+        protocolAmount = protocolAmount + (totalFee - queryFee);
+
+        // Return overpayment
+        uint256 overPayment = msg.value - totalFee;
+        if (overPayment > 0) {
+            (bool success, ) = payable(tx.origin).call{value: overPayment}("");
+            if (!success) revert InvalidTransfer();
+        }
 
         emit Packet(
             tx.origin,
@@ -288,7 +345,9 @@ contract Gateway is
      */
     function receiveQuery(
         QueryType.QueryResponse memory response
-    ) external payable virtual onlyGelatoRelayERC2771 {
+    ) external payable virtual onlyApprovedRelayer {
+        if (!approvedRelayers[msg.sender]) revert InvalidRelayer();
+
         bytes32 queryId = response.queryId;
         Query memory storedQuery = queryStore[queryId];
 
@@ -344,10 +403,9 @@ contract Gateway is
             queryStore[queryId].status = QueryStatus.Failed;
         }
 
-        // refund relay fee
-        nativeTokenAmount = nativeTokenAmount - _getFee();
-
-        _transferRelayFee();
+        // pay relayer
+        uint256 queryFee = queryFees[queryId];
+        relayerBalances[msg.sender] = relayerBalances[msg.sender] + queryFee;
     }
 
     /**
@@ -414,11 +472,21 @@ contract Gateway is
      * @dev This function withdraws native token from the contract.
      */
     function withdraw() external onlyOwner {
-        uint256 withdrawAmount = nativeTokenAmount;
-        nativeTokenAmount = 0;
+        uint256 withdrawAmount = protocolAmount;
+        protocolAmount = 0;
 
         (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
-        if (!success) revert InvalidWithdraw();
+        if (!success) revert InvalidTransfer();
+
+        emit Withdraw(msg.sender, withdrawAmount);
+    }
+
+    function withdrawRelayerBalance() external {
+        uint256 withdrawAmount = relayerBalances[msg.sender];
+        relayerBalances[msg.sender] = 0;
+
+        (bool success, ) = payable(msg.sender).call{value: withdrawAmount}("");
+        if (!success) revert InvalidTransfer();
 
         emit Withdraw(msg.sender, withdrawAmount);
     }
@@ -429,6 +497,34 @@ contract Gateway is
      */
     function getNonce() external view returns (uint256) {
         return _nonce;
+    }
+
+    /**
+     * @notice Set the relayers
+     * @param relayers The relayer addresses
+     */
+    function setRelayers(address[] memory relayers) external onlyOwner {
+        uint256 relayerSize = relayers.length;
+        if (relayerSize > _MAX_RELAYER_COUNT) revert TooManyRelayers();
+
+        for (uint256 i; i < relayerSize; i++) {
+            approvedRelayers[relayers[i]] = true;
+            emit SetRelayer(msg.sender, relayers[i]);
+        }
+    }
+
+    /**
+     * @notice Remove the relayers
+     * @param relayers The relayer addresses
+     */
+    function removeRelayers(address[] memory relayers) external onlyOwner {
+        uint256 relayerSize = relayers.length;
+        if (relayerSize > _MAX_RELAYER_COUNT) revert TooManyRelayers();
+
+        for (uint256 i; i < relayerSize; i++) {
+            approvedRelayers[relayers[i]] = false;
+            emit RemoveRelayer(msg.sender, relayers[i]);
+        }
     }
 
     /* ----------------------------- Public Functions -------------------------------- */
@@ -445,7 +541,24 @@ contract Gateway is
         address lightClient,
         QueryType.QueryRequest[] memory queries
     ) public view returns (uint256) {
-        return 0;
+        uint256 verificationFee = ILightClient(lightClient).estimateFee(
+            queries
+        );
+        // Total fee is the sum of protocol fee and verification fee
+        uint256 totalFee = protocolFee + verificationFee;
+        return totalFee;
+    }
+
+    /**
+     * @notice Get the current protocol fee
+     * @param _protocolFee The new protocol fee
+     */
+    function setProtocolFee(uint256 _protocolFee) public onlyOwner {
+        if (_protocolFee > MAX_PROTOCOL_FEE) revert MaxProtocolFeeExceeded();
+
+        protocolFee = _protocolFee;
+
+        emit UpdateProtocolFee(_protocolFee);
     }
 
     /* ----------------------------- Private Functions -------------------------------- */
@@ -463,5 +576,12 @@ contract Gateway is
         return
             IERC165(callBackAddress).supportsInterface(_IRECEIVER_ID) &&
             IERC165(lightClient).supportsInterface(_ILIGHT_CLIENT_ID);
+    }
+
+    /* ----------------------------- Modifiers -------------------------------- */
+
+    modifier onlyApprovedRelayer() {
+        if (!approvedRelayers[msg.sender]) revert InvalidRelayer();
+        _;
     }
 }
