@@ -1,17 +1,11 @@
 import { task, types } from "hardhat/config";
 import DEPLOYMENT from "../constants/deployments.json"
 import ORACLE from "../constants/oracle.json"
+import GAS from "../constants/gas.json"
 import fs from 'fs';
-import { parseEther } from "ethers/lib/utils";
-import { BigNumber } from "ethers/lib/ethers";
 
 const FILE_PATH = "./constants/deployments.json"
 const protocolFee = "0.001";
-const gasData = {
-  gasLimit: "1000000",
-  gasPrice: "10000000000", // 10 gwei
-  gasPerQuery: "21000"
-}
 
 task("TASK_SETUP_CONTRACT", "Setup all contract")
   .addParam<boolean>("gateway", "Deploy gateway contract", false, types.boolean)
@@ -47,6 +41,7 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
       }
 
       if (isClientDeployed) {
+        const gasData = GAS[hre.network.name as keyof typeof GAS];
         const feed = ORACLE[hre.network.name as keyof typeof ORACLE].feed;
         client = await hre.run("TASK_DEPLOY_LIGHT_CLIENT", { gateway, oracle: gateway, feed, gaslimit: gasData.gasLimit, gasprice: gasData.gasPrice, gasperquery: gasData.gasPerQuery, verify })
       } else {
@@ -70,11 +65,12 @@ task("TASK_SETUP_CONTRACT", "Setup all contract")
 
       if (isClientDeployed || isOracleDeployed) {
         await hre.run("TASK_SET_ORACLE", { oracle, client })
+        await hre.run("TASK_SET_LIGHT_CLIENT", { client, oracle })
       }
 
       if (isOperatorDeployed || isOracleDeployed) {
         await hre.run("TASK_SET_CHAINLINK_ORACLE", { oracle, operator })
-        await hre.run("TASK_SET_SENDER", { operator, oracle })
+        await hre.run("TASK_SET_SENDER", { operator })
       }
 
       deployments[hre.network.name].gateway = gateway;

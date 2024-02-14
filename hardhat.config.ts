@@ -44,8 +44,19 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.POLYGON_SCAN_KEY || "",
       moonbaseAlpha: process.env.MOONBEAM_SCAN_KEY || "",
       optimisticGoerli: process.env.OPTIMISM_SCAN_KEY || "",
-      arbitrumGoerli: process.env.ARBITRUM_SCAN_KEY || ""
-    }
+      arbitrumGoerli: process.env.ARBITRUM_SCAN_KEY || "",
+      sepolia: process.env.ETHEREUM_SCAN_KEY || "",
+      arbitrumTestnet: process.env.ARBITRUM_SCAN_KEY || "",
+      "arbitrum-sepolia": process.env.ARBITRUM_SCAN_KEY || "",
+    },
+    customChains: [{
+      network: "arbitrum-sepolia",
+      chainId: 421614,
+      urls: {
+        apiURL: "https://api-sepolia.arbiscan.io/api",
+        browserURL: "https://sepolia.arbiscan.io",
+      },
+    }]
   },
   networks: {
     hardhat: {
@@ -73,6 +84,16 @@ const config: HardhatUserConfig = {
     sepolia: {
       chainId: 11155111,
       url: `https://sepolia.infura.io/v3/${apiKey}`,
+      accounts
+    },
+    "arbitrum-sepolia": {
+      chainId: 421614,
+      url: `https://arbitrum-sepolia.infura.io/v3/${apiKey}`,
+      accounts
+    },
+    "optimism-sepolia": {
+      chainId: 11155420,
+      url: `https://optimism-sepolia.infura.io/v3/${apiKey}`,
       accounts
     }
   },

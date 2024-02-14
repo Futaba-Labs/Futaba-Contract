@@ -17,6 +17,7 @@ type QueryParam = {
 describe("Gateway", async function () {
   const oracleFee = parseEther("0.1")
   const protocolFee = parseEther("0.1")
+  const chainlinkFee = parseEther("0.1")
   const gasData = GAS_DATA
 
   let gateway: Gateway,
@@ -59,7 +60,7 @@ describe("Gateway", async function () {
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, chainlinkFee, operator.address);
     await oracleMock.deployed()
 
     const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
@@ -628,7 +629,7 @@ describe("Gateway", async function () {
     ]
 
     // calc fee
-    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee).add(protocolFee)
+    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee.mul(chainlinkFee).div(parseEther("1"))).add(protocolFee)
     expect(await gateway.estimateFee(chainlinkLightClient.address, queries)).to.be.equal(fee)
   })
 

@@ -28,6 +28,7 @@ describe("ChainlinkLightClient", async function () {
 
   const oracleFee = parseEther("0.1")
   const protocolFee = parseEther("0.1")
+  const chainLinkFee = parseEther("0.1")
   const gasData = GAS_DATA
 
 
@@ -49,7 +50,7 @@ describe("ChainlinkLightClient", async function () {
 
     const OracleMock = await ethers.getContractFactory("OracleTestMock")
     const jobId = hexlify(hexZeroPad(toUtf8Bytes(JOB_ID), 32))
-    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, parseEther("0.1"), operator.address);
+    oracleMock = await OracleMock.deploy(linkToken.address, jobId, operator.address, chainLinkFee, operator.address);
     await oracleMock.deployed()
 
     const AggregatorV3Mock = await ethers.getContractFactory("AggregatorV3Mock")
@@ -334,7 +335,7 @@ describe("ChainlinkLightClient", async function () {
     ]
 
     // calculate fee
-    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee)
+    const fee = (BigNumber.from(queries.length).mul(gasData.gasPerQuery).add(gasData.gasLimit)).mul(gasData.gasPrice).add(oracleFee.mul(chainLinkFee).div(parseEther("1")))
     expect(await chainlinkLightClient.estimateFee(queries)).to.equal(fee)
   })
 
