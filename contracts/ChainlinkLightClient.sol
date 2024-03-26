@@ -377,7 +377,8 @@ contract ChainlinkLightClient is
         // Also assuming that the `getLatestPrice` function of the Chainlink data feed contract returns the latest LINK/Native Token rate
         (, int answer, , , ) = AggregatorV3Interface(chainlinkDataFeed)
             .latestRoundData();
-        uint256 oracleFee = uint256(answer);
+        uint256 oracleFee = (uint256(answer) *
+            IExternalAdapter(oracle).getFee()) / 1 ether;
 
         // Total verification fee is the sum of relayer fee and oracle fee
         uint256 totalFee = queryFee + oracleFee;

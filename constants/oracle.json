@@ -2,28 +2,49 @@
   "mumbai": {
     "token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
     "jobId": "af037e503e964dd2a1d3cb0c715f945b",
-    "fee": "0.1",
+    "fee": "0.01",
     "sender": "0xd76C2dCdBAEC4006c7874F9b91C322052eE76FEf",
     "feed": "0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada"
   },
   "goerli": {
     "token": "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
     "jobId": "af037e503e964dd2a1d3cb0c715f945b",
-    "fee": "0.1",
+    "fee": "0.01",
     "sender": "0xd76C2dCdBAEC4006c7874F9b91C322052eE76FEf",
     "feed": ""
   },
   "optimism-goerli": {
     "token": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
     "jobId": "",
-    "fee": "0.1",
+    "fee": "0.01",
     "sender": "",
     "feed": ""
   },
   "arbitrum-goerli": {
     "token": "0xd14838A68E8AFBAdE5efb411d5871ea0011AFd28",
     "jobId": "",
-    "fee": "0.1",
+    "fee": "0.01",
+    "sender": "",
+    "feed": ""
+  },
+  "sepolia": {
+    "token": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
+    "jobId": "",
+    "fee": "0.01",
+    "sender": "",
+    "feed": ""
+  },
+  "arbitrum-sepolia": {
+    "token": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
+    "jobId": "af037e503e964dd2a1d3cb0c715f945b",
+    "fee": "0.01",
+    "sender": "0x176365A8C5B73ac5ff9ca7637008aDb5E1d2EfD7",
+    "feed": "0x3ec8593F930EA45ea58c968260e6e9FF53FC934f"
+  },
+  "optimism-sepolia": {
+    "token": "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6",
+    "jobId": "",
+    "fee": "0.01",
     "sender": "",
     "feed": ""
   }

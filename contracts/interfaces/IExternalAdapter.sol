@@ -11,4 +11,6 @@ interface IExternalAdapter {
     function notifyOracle(
         QueryType.OracleQuery[] memory queries
     ) external returns (bytes32 requestId);
+
+    function getFee() external view returns (uint256);
 }
