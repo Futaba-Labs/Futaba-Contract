@@ -38,7 +38,7 @@
     "token": "0xb1D4538B4571d411F07960EF2838Ce337FE1E80E",
     "jobId": "af037e503e964dd2a1d3cb0c715f945b",
     "fee": "0.01",
-    "sender": "0x176365A8C5B73ac5ff9ca7637008aDb5E1d2EfD7",
+    "sender": "0x5dAE62bD2d33B6450f44fb0210B261914eFcbdb3",
     "feed": "0x3ec8593F930EA45ea58c968260e6e9FF53FC934f"
   },
   "optimism-sepolia": {
@@ -46,6 +46,6 @@
     "jobId": "",
     "fee": "0.01",
     "sender": "",
-    "feed": ""
+    "feed": "0x98EeB02BC20c5e7079983e8F0D0D839dFc8F74fA"
   }
 }

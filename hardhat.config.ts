@@ -48,6 +48,7 @@ const config: HardhatUserConfig = {
       sepolia: process.env.ETHEREUM_SCAN_KEY || "",
       arbitrumTestnet: process.env.ARBITRUM_SCAN_KEY || "",
       "arbitrum-sepolia": process.env.ARBITRUM_SCAN_KEY || "",
+      "optimism-sepolia": process.env.OPTIMISM_SCAN_KEY || "",
     },
     customChains: [{
       network: "arbitrum-sepolia",
@@ -56,6 +57,15 @@ const config: HardhatUserConfig = {
         apiURL: "https://api-sepolia.arbiscan.io/api",
         browserURL: "https://sepolia.arbiscan.io",
       },
+    },
+    {
+      network: "optimism-sepolia",
+      chainId: 11155420,
+      urls: {
+        apiURL: "https://api-goerli-optimistic.etherscan.io/api",
+        browserURL: "https://sepolia-optimism.etherscan.io",
+      },
+
     }]
   },
   networks: {

@@ -43,7 +43,7 @@ async function main() {
   const queries: QueryType.QueryRequestStruct[] = [
     {
       dstChainId: 11155111, to: usdcOnSepolia, height:
-        5287151, slot: slot1
+        5287161, slot: slot1
     }
   ]
   console.log("queries: ", JSON.stringify(queries))

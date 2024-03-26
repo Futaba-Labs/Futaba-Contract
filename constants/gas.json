@@ -8,5 +8,10 @@
     "gasLimit": "1000000",
     "gasPrice": "100000000",
     "gasPerQuery": "21000"
+  },
+  "optimism-sepolia": {
+    "gasLimit": "1000000",
+    "gasPrice": "100000000",
+    "gasPerQuery": "21000"
   }
 }
