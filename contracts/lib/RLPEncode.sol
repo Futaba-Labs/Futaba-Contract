@@ -82,15 +82,6 @@ library RLPEncode {
     }
 
     /**
-     * @dev RLP encodes an int.
-     * @param self The int to encode.
-     * @return The RLP encoded int in bytes.
-     */
-    function encodeInt(int self) internal pure returns (bytes memory) {
-        return encodeUint(uint(self));
-    }
-
-    /**
      * @dev RLP encodes a bool.
      * @param self The bool to encode.
      * @return The RLP encoded bool in bytes.

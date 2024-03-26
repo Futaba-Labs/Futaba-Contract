@@ -7,6 +7,14 @@ import {IExternalAdapter} from "./interfaces/IExternalAdapter.sol";
 import {IChainlinkLightClient} from "./interfaces/IChainlinkLightClient.sol";
 import {QueryType} from "./QueryType.sol";
 
+interface IERC677 {
+    function transferAndCall(
+        address to,
+        uint value,
+        bytes memory data
+    ) external returns (bool success);
+}
+
 /**
  * @title Chainlink Oracle contract
  * @notice This is ChainlinkOracle contract when using Chainlink Node Operator
@@ -251,6 +259,11 @@ contract ChainlinkOracle is ChainlinkClient, ConfirmedOwner, IExternalAdapter {
      * @param _tokenAddress The address of the Chainlink Token contract
      */
     function setLinkToken(address _tokenAddress) public onlyOwner {
+        require(
+            IERC677(_tokenAddress).transferAndCall.selector != bytes4(0),
+            "Token must be ERC-677 compatible"
+        );
+
         if (_tokenAddress == address(0)) revert InvalidInputZeroAddress();
         address oldTokenAddress = chainlinkTokenAddress();
         setChainlinkToken(_tokenAddress);
