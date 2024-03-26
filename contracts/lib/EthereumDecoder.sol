@@ -261,6 +261,7 @@ library EthereumDecoder {
     function toBytes32(
         bytes memory data
     ) internal pure returns (bytes32 _data) {
+        require(data.length >= 32, "Data length is less than 32 bytes");
         assembly {
             _data := mload(add(data, 32))
         }
