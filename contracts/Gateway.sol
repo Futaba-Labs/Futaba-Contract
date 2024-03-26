@@ -401,6 +401,9 @@ contract Gateway is
         } catch Error(string memory reason) {
             emit ReceiverError(queryId, bytes(reason));
             queryStore[queryId].status = QueryStatus.Failed;
+        } catch {
+            emit ReceiverError(queryId, "Generic exception");
+            queryStore[queryId].status = QueryStatus.Failed;
         }
 
         // pay relayer
